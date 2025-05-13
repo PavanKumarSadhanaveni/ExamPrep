@@ -138,3 +138,13 @@ body {
     opacity: 0.2;
   }
 }
+
+/* Sidebar resizing global styles */
+.sidebar-resizing {
+  user-select: none !important; /* Prevent text selection during drag */
+  cursor: col-resize !important; /* Indicate resizing */
+}
+
+.sidebar-resizing * {
+  pointer-events: none !important; /* Prevent other elements from interfering with drag */
+}
