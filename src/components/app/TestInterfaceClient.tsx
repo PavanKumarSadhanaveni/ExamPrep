@@ -1,4 +1,3 @@
-
 "use client";
 
 import type React from 'react';
@@ -49,6 +48,10 @@ const TestInterfaceClient: React.FC = () => {
       router.replace('/exam/details');
       return;
     }
+    if (endTime) { // If exam is already finished, redirect to results
+      router.replace('/exam/results');
+      return;
+    }
     setIsPageLoading(false);
   }, [examInfo, questions, startTime, endTime, sectionsExtracted, router, toast]);
 
@@ -66,6 +69,8 @@ const TestInterfaceClient: React.FC = () => {
       extractQuestionsForSection(nextSectionName).then(success => {
         if (success) {
           toast({ title: "Next Section Ready", description: `${nextSectionName} questions are now available.`});
+        } else {
+          toast({ title: "Next Section Load Issue", description: `Could not load questions for ${nextSectionName}. You can try navigating to it manually later.`, variant:"default", duration: 6000});
         }
       });
     }
@@ -73,6 +78,7 @@ const TestInterfaceClient: React.FC = () => {
 
   useEffect(() => {
     if (questions.length > 0) {
+      // Count unattempted from the full list of userAnswers, not just for current section
       const unattempted = userAnswers.filter(ans => ans.selectedOption === null).length;
       setUnattemptedQuestionsCount(unattempted);
     } else {
@@ -81,21 +87,31 @@ const TestInterfaceClient: React.FC = () => {
   }, [userAnswers, questions.length]);
 
 
-  if (isPageLoading || contextIsLoading) return <LoadingDots text="Loading exam interface..." />;
+  if (isPageLoading || contextIsLoading && !currentSection) return <LoadingDots text="Loading exam interface..." />;
   
   const currentQuestion = questions[currentQuestionIndex];
-  const isCurrentSectionLoading = sectionBeingExtracted === currentSection && !sectionsExtracted.includes(currentSection || "");
+  const isCurrentSectionLoadingQuestions = sectionBeingExtracted === currentSection && !sectionsExtracted.includes(currentSection || "");
 
-  if (!currentQuestion && !isCurrentSectionLoading && questions.length === 0 && examInfo?.sections?.length > 0) {
+  if (!currentQuestion && !isCurrentSectionLoadingQuestions && examInfo?.sections?.length > 0) {
+    const questionsForCurrentSection = questions.filter(q => q.section === currentSection).length;
+    const isCurrentSectionLoaded = sectionsExtracted.includes(currentSection || "");
+
      return (
       <div className="text-center py-10 flex flex-col items-center justify-center h-full">
         <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
-        <h2 className="mt-4 text-xl font-semibold">No Questions Available</h2>
+        <h2 className="mt-4 text-xl font-semibold">
+          {isCurrentSectionLoaded && questionsForCurrentSection === 0 
+            ? `No Questions Found for ${currentSection}` 
+            : `No Questions Available for ${currentSection}`}
+        </h2>
         <p className="mt-2 text-muted-foreground">
-          Questions for the section "{currentSection}" are not yet loaded or could not be found.
+          {isCurrentSectionLoaded && questionsForCurrentSection === 0
+            ? `The AI could not extract any questions for the section "${currentSection}".`
+            : `Questions for "${currentSection}" are not loaded yet.`
+          }
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Try navigating to another section, or check notifications for loading status.
+          You can try navigating to another section using the sidebar, or if this is the first section, please check the exam details.
         </p>
         <Button onClick={() => router.push('/exam/details')} className="mt-6">
           Back to Exam Details
@@ -104,7 +120,7 @@ const TestInterfaceClient: React.FC = () => {
     );
   }
   
-  if (isCurrentSectionLoading) {
+  if (isCurrentSectionLoadingQuestions) {
     return <LoadingDots text={`Loading questions for ${currentSection}...`} />;
   }
 
@@ -120,7 +136,7 @@ const TestInterfaceClient: React.FC = () => {
     if (currentQuestionIndex < questions.length - 1) {
       navigateToQuestion(currentQuestionIndex + 1);
     } else {
-        toast({ title: "End of Loaded Questions", description: "You've reached the end of currently loaded questions. More may be loading."})
+        toast({ title: "End of Loaded Questions", description: "You've reached the end of currently loaded questions. More may be loading, or you can submit."})
     }
   };
 
@@ -136,6 +152,8 @@ const TestInterfaceClient: React.FC = () => {
     answerQuestion(currentQuestion.id, null); 
     if (currentQuestionIndex < questions.length - 1) {
       handleNext();
+    } else {
+       toast({ title: "Skipped Last Loaded Question", description: "This was the last loaded question. You can submit or wait for more."})
     }
   };
 
@@ -158,7 +176,7 @@ const TestInterfaceClient: React.FC = () => {
   return (
     <div className="flex flex-col h-full relative">
       {isPaused && (
-        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4">
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4 p-4 text-center">
           <PauseCircle className="h-16 w-16 text-primary" />
           <h2 className="text-2xl font-semibold">Exam Paused</h2>
           <p className="text-muted-foreground">Taking a break? Make sure to come back stronger 💪</p>
@@ -169,11 +187,11 @@ const TestInterfaceClient: React.FC = () => {
       )}
       <header className={cn("p-4 border-b bg-card shadow-sm", isPaused && "blur-sm pointer-events-none")}>
         <div className="flex justify-between items-center">
-          <h1 className="text-xl font-semibold text-primary">{examData.examInfo?.examName || "Exam"}</h1>
-          <div className="flex items-center gap-2 md:gap-4">
+          <h1 className="text-xl font-semibold text-primary truncate" title={examData.examInfo?.examName || "Exam"}>{examData.examInfo?.examName || "Exam"}</h1>
+          <div className="flex items-center gap-2 md:gap-4 shrink-0">
             {!isExamFinished && <TimerDisplay />}
             {!isExamFinished && (
-               <Button onClick={handlePauseToggle} variant="outline" size="sm">
+               <Button onClick={handlePauseToggle} variant="outline" size="sm" aria-label={isPaused ? "Resume Exam" : "Pause Exam"}>
                 {isPaused ? <PlayCircle className="mr-0 md:mr-2 h-4 w-4" /> : <PauseCircle className="mr-0 md:mr-2 h-4 w-4" />}
                 <span className="hidden md:inline">{isPaused ? "Resume" : "Pause"}</span>
               </Button>
@@ -211,13 +229,13 @@ const TestInterfaceClient: React.FC = () => {
         <div className="mt-3 space-y-1">
             <Progress value={progress} className="h-2" title={`Question ${currentQuestionIndex + 1} of ${questions.length} loaded`}/>
             <p className="text-xs text-muted-foreground text-right">
-            Question {questions.length > 0 ? currentQuestionIndex + 1 : 0} of {questions.length} (Loaded)
+            Question {questions.length > 0 ? currentQuestionIndex + 1 : 0} of {questions.length} (Loaded so far)
             </p>
-            {examInfo?.numberOfQuestions && examInfo.numberOfQuestions > questions.length && (
+            {examInfo?.numberOfQuestions && examInfo.numberOfQuestions > 0 && (
                  <>
-                 <Progress value={overallProgress} className="h-1 bg-secondary/50" title={`Overall progress: ${questions.length} of ${examInfo.numberOfQuestions} expected questions loaded`} />
+                 <Progress value={overallProgress} className="h-1 bg-secondary/50" title={`Overall progress: ${questions.length} of ${examInfo.numberOfQuestions || 'many'} expected questions loaded`} />
                  <p className="text-xs text-muted-foreground text-right">
-                    Overall: {sectionsExtracted.length} of {examInfo.sections.length} sections ({questions.length} of ~{examInfo.numberOfQuestions} Qs) loaded
+                    Overall: {sectionsExtracted.length} of {examInfo.sections.length} sections ({questions.length} of ~{examInfo.numberOfQuestions || sectionsExtracted.length * 10 } Qs) loaded
                  </p>
                  </>
             )}
@@ -228,31 +246,33 @@ const TestInterfaceClient: React.FC = () => {
         {currentQuestion ? (
           <QuestionCardClient
             question={currentQuestion}
-            questionNumber={currentQuestionIndex + 1}
+            questionNumber={currentQuestionIndex + 1} // This is the overall question number of loaded questions
             isSubmitted={isExamFinished}
           />
         ) : (
-           questions.length > 0 ? <p>Loading question...</p> : 
-           <div className="text-center py-10">
+           // This case should be rare if loading logic and empty section states are handled above
+           // But as a fallback:
+           questions.length > 0 && !isCurrentSectionLoadingQuestions ? <LoadingDots text="Loading question data..." /> : 
+           !isCurrentSectionLoadingQuestions && <div className="text-center py-10">
              <AlertTriangle className="mx-auto h-12 w-12 text-orange-400" />
-             <h2 className="mt-4 text-xl font-semibold">No Questions For This Section Yet</h2>
+             <h2 className="mt-4 text-xl font-semibold">No Active Question</h2>
              <p className="mt-2 text-muted-foreground">
-               Questions for "{currentSection}" might still be loading or none were found.
+               Please select a section or question from the navigator.
              </p>
-             {sectionBeingExtracted === currentSection && <LoadingDots text={`Extracting ${currentSection}...`} className="mt-4"/>}
+             {sectionBeingExtracted && <LoadingDots text={`Extracting ${sectionBeingExtracted}...`} className="mt-4"/>}
            </div>
         )}
       </main>
 
       <footer className={cn("p-4 border-t bg-card flex flex-col sm:flex-row justify-between items-center gap-4", isPaused && "blur-sm pointer-events-none")}>
-        <div className="flex-1 hidden sm:block"> {/* Placeholder to balance the flex layout when legend is removed */}
+        <div className="flex-1 hidden sm:block"> {/* Placeholder to balance the flex layout */}
           
         </div>
         <div className="flex flex-col sm:flex-row justify-end items-center gap-4 w-full sm:w-auto">
             <Button 
             variant="outline" 
             onClick={handlePrevious} 
-            disabled={currentQuestionIndex === 0 || isExamFinished || isPaused || isCurrentSectionLoading}
+            disabled={currentQuestionIndex === 0 || isExamFinished || isPaused || isCurrentSectionLoadingQuestions || !currentQuestion}
             className="w-full sm:w-auto"
             >
             <ArrowLeft className="mr-2 h-4 w-4" /> Previous
@@ -261,7 +281,7 @@ const TestInterfaceClient: React.FC = () => {
             <Button 
                 variant="ghost" 
                 onClick={handleSkip}
-                disabled={isPaused || isCurrentSectionLoading}
+                disabled={isPaused || isCurrentSectionLoadingQuestions || !currentQuestion}
                 className="w-full sm:w-auto text-muted-foreground hover:text-foreground"
             >
                 <HelpCircle className="mr-2 h-4 w-4" /> Skip Question
@@ -269,7 +289,7 @@ const TestInterfaceClient: React.FC = () => {
             )}
             <Button 
             onClick={handleNext} 
-            disabled={!currentQuestion || currentQuestionIndex === questions.length - 1 || isExamFinished || isPaused || isCurrentSectionLoading}
+            disabled={!currentQuestion || currentQuestionIndex === questions.length - 1 || isExamFinished || isPaused || isCurrentSectionLoadingQuestions}
             className="w-full sm:w-auto bg-primary hover:bg-primary/90"
             >
             Next <ArrowRight className="ml-2 h-4 w-4" />
@@ -281,4 +301,3 @@ const TestInterfaceClient: React.FC = () => {
 };
 
 export default TestInterfaceClient;
-
