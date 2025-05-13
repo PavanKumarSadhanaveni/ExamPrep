@@ -1,3 +1,4 @@
+
 "use client";
 
 import type React from 'react';
@@ -21,7 +22,7 @@ const ExamDetailsDisplay: React.FC = () => {
   const router = useRouter();
   const { 
     examData, 
-    setExamInfo: contextSetExamInfo, // Renamed to avoid conflict with local state setter
+    setExamInfo: contextSetExamInfo,
     startExam, 
     isLoading: contextIsLoading, 
     sectionsExtracted, 
@@ -34,34 +35,61 @@ const ExamDetailsDisplay: React.FC = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
 
-  const firstSectionName = examData.examInfo?.sections?.[0] || null;
+  const firstSectionName = editableInfo?.sections?.[0] || null; // Use editableInfo for consistency
   const areFirstSectionQuestionsLoaded = firstSectionName ? sectionsExtracted.includes(firstSectionName) : false;
   const isFirstSectionCurrentlyLoading = firstSectionName === sectionBeingExtracted;
 
 
   useEffect(() => {
-    setIsPageLoading(true);
+    setIsPageLoading(true); 
+  
     if (examData.examInfo) {
-      setEditableInfo(JSON.parse(JSON.stringify(examData.examInfo)));
+      const currentExamInfoSnapshot = JSON.parse(JSON.stringify(examData.examInfo));
+      setEditableInfo(currentExamInfoSnapshot);
+  
+      const noSections = !currentExamInfoSnapshot.sections || currentExamInfoSnapshot.sections.length === 0;
+      // numberOfQuestions from AI is optional, so it can be undefined.
+      const noTotalQuestions = currentExamInfoSnapshot.numberOfQuestions === undefined || currentExamInfoSnapshot.numberOfQuestions === null; 
+  
+      if (noSections && noTotalQuestions) {
+        toast({
+          title: "AI Analysis Incomplete",
+          description: "Key exam details (sections, total questions) missing. Redirecting to suggestions page.",
+          variant: "default",
+          duration: 6000, 
+        });
+        router.replace('/exam/suggestions');
+        // Component will unmount on redirect, no need to setIsPageLoading(false) here.
+        return; 
+      }
+      
       setHasUnsavedChanges(false);
+      setIsPageLoading(false); // Processed examInfo, not redirecting
+  
     } else if (!contextIsLoading) { 
+      // No examData.examInfo and context is not attempting to load it.
       toast({
         title: "Missing Exam Data",
         description: "No exam information found. Please upload a PDF first.",
         variant: "destructive",
       });
       router.replace('/');
-      return; 
+      // Component will unmount on redirect.
+      return;
+    } else {
+      // examData.examInfo is null, BUT contextIsLoading is true.
+      // This means we are waiting for exam info. isPageLoading remains true.
+      // The LoadingDots component will be shown by the main render return.
     }
-    setIsPageLoading(false);
   }, [examData.examInfo, contextIsLoading, router, toast]);
+  
 
-  // Attempt to load first section if not already loaded/loading
+  // Attempt to load first section if not already loaded/loading and editableInfo is set
   useEffect(() => {
-    if (firstSectionName && !areFirstSectionQuestionsLoaded && !isFirstSectionCurrentlyLoading && !contextIsLoading && examData.pdfTextContent) {
+    if (editableInfo && firstSectionName && !areFirstSectionQuestionsLoaded && !isFirstSectionCurrentlyLoading && !contextIsLoading && examData.pdfTextContent) {
       extractQuestionsForSection(firstSectionName);
     }
-  }, [firstSectionName, areFirstSectionQuestionsLoaded, isFirstSectionCurrentlyLoading, extractQuestionsForSection, contextIsLoading, examData.pdfTextContent]);
+  }, [editableInfo, firstSectionName, areFirstSectionQuestionsLoaded, isFirstSectionCurrentlyLoading, extractQuestionsForSection, contextIsLoading, examData.pdfTextContent]);
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -77,12 +105,6 @@ const ExamDetailsDisplay: React.FC = () => {
         if (isNaN(processedValue as number)) {
             processedValue = undefined;
         }
-      } else if (fieldName === 'sections') {
-        // Modifying sections array directly if needed. For now, it's display-only mostly from AI.
-        // If sections are user-editable, this logic needs to update context carefully.
-        // For now, let's assume sections derived by AI are the source of truth for section names.
-        // This input might be better as a Textarea for comma-separated values if editable.
-        // For simplicity, we are not making sections editable here.
       }
       
       setHasUnsavedChanges(true);
@@ -92,13 +114,11 @@ const ExamDetailsDisplay: React.FC = () => {
 
   const handleSaveChanges = () => {
     if (editableInfo) {
-      // Basic Validations
       if (!editableInfo.examName?.trim() || !editableInfo.duration?.trim()) {
         toast({ title: "Missing Information", description: "Exam Name and Duration are required.", variant: "destructive" });
         return;
       }
-      // More specific validations
-      contextSetExamInfo(editableInfo); // Use the renamed context function
+      contextSetExamInfo(editableInfo);
       setHasUnsavedChanges(false);
       toast({ title: "Details Saved", description: "Exam details have been successfully updated.", variant: "default" });
     }
@@ -109,10 +129,11 @@ const ExamDetailsDisplay: React.FC = () => {
       toast({ title: "Unsaved Changes", description: "Please save your changes before starting the exam.", variant: "default" });
       return;
     }
-    if (!examData.examInfo) {
+    if (!editableInfo) { // Changed from examData.examInfo to editableInfo
       toast({ title: "Error", description: "Exam details not available.", variant: "destructive" });
       return;
     }
+    // Use firstSectionName derived from editableInfo
     if (!firstSectionName || !areFirstSectionQuestionsLoaded) {
       toast({
         title: "First Section Not Ready",
@@ -120,7 +141,7 @@ const ExamDetailsDisplay: React.FC = () => {
         variant: "destructive",
       });
       if (firstSectionName && !isFirstSectionCurrentlyLoading && examData.pdfTextContent) {
-        extractQuestionsForSection(firstSectionName); // Attempt to load again
+        extractQuestionsForSection(firstSectionName); 
       }
       return;
     }
@@ -137,11 +158,11 @@ const ExamDetailsDisplay: React.FC = () => {
     router.push('/exam/test');
   };
   
-  if (isPageLoading || contextIsLoading && !examData.examInfo) { // Show main loading if examInfo isn't even there yet.
+  if (isPageLoading || (contextIsLoading && !editableInfo)) { 
     return <LoadingDots text="Loading exam details..." />;
   }
 
-  if (!editableInfo) {
+  if (!editableInfo) { // This should ideally not be hit if redirection logic works, but as a fallback.
     return (
       <Card className="w-full max-w-2xl mx-auto shadow-lg">
         <CardHeader><CardTitle className="flex items-center gap-2 text-destructive"><AlertCircle /> No Exam Information</CardTitle></CardHeader>
@@ -166,7 +187,7 @@ const ExamDetailsDisplay: React.FC = () => {
             (isFirstSectionCurrentlyLoading ? `Loading questions for ${firstSectionName}...` : 
             (areFirstSectionQuestionsLoaded ? `${questionsForFirstSectionCount} questions loaded for ${firstSectionName}.` : `First section (${firstSectionName}) questions not loaded yet.`))
             : "No sections identified."}
-           Total questions expected: {editableInfo.numberOfQuestions || 'N/A'}.
+           Total questions expected: {editableInfo.numberOfQuestions ?? 'N/A'}.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -195,7 +216,6 @@ const ExamDetailsDisplay: React.FC = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {/* Fields: Exam Name, Duration, Total Marks, Total Number of Qs, Marks Per Q, Negative Marking */}
             <TableRow>
               <TableCell><Label htmlFor="examName">Exam Name*</Label></TableCell>
               <TableCell><Input id="examName" name="examName" value={editableInfo.examName || ""} onChange={handleChange} placeholder="e.g., Final Physics Exam" /></TableCell>
@@ -238,7 +258,7 @@ const ExamDetailsDisplay: React.FC = () => {
               ))}
             </ul>
           ) : (
-            <p className="mt-2 text-muted-foreground bg-secondary/30 p-3 rounded-md">No sections identified by AI.</p>
+            <p className="mt-2 text-muted-foreground bg-secondary/30 p-3 rounded-md">No sections identified by AI. You may want to <Link href="/exam/suggestions" className="text-primary hover:underline">check suggestions</Link> if total questions are also missing.</p>
           )}
         </div>
         <Separator />
@@ -250,8 +270,8 @@ const ExamDetailsDisplay: React.FC = () => {
       <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-6">
         <Button variant="outline" onClick={() => router.push('/')} className="w-full sm:w-auto"><Upload className="mr-2 h-4 w-4" /> Upload Different PDF</Button>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          <Button onClick={handleSaveChanges} variant="secondary" className="w-full sm:w-auto" disabled={!hasUnsavedChanges}><Save className="mr-2 h-4 w-4" /> Save Changes</Button>
-          <Button onClick={handleStartExam} className="w-full sm:w-auto bg-primary hover:bg-primary/90" disabled={startButtonDisabled}>
+          <Button onClick={handleSaveChanges} variant="secondary" className="w-full sm:w-auto" disabled={!hasUnsavedChanges || !editableInfo}><Save className="mr-2 h-4 w-4" /> Save Changes</Button>
+          <Button onClick={handleStartExam} className="w-full sm:w-auto bg-primary hover:bg-primary/90" disabled={startButtonDisabled || !editableInfo}>
             {isFirstSectionCurrentlyLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PlayCircle className="mr-2 h-5 w-5" />}
             {isFirstSectionCurrentlyLoading ? "Loading..." : (areFirstSectionQuestionsLoaded && questionsForFirstSectionCount > 0 ? `Start Exam (${questionsForFirstSectionCount} Qs)` : "Start Exam")}
           </Button>
