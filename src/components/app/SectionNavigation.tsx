@@ -7,15 +7,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useExamContext } from '@/hooks/useExamContext';
 import { cn } from '@/lib/utils';
 import {
-  Sidebar,
   SidebarContent,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarProvider,
   SidebarTrigger,
-  SidebarInset,
 } from '@/components/ui/sidebar';
 
 
@@ -46,6 +43,7 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({ className }) => {
 
 
   return (
+    <>
       <SidebarHeader className="p-2 flex justify-between items-center">
         <h3 className="text-lg font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">Sections</h3>
         <SidebarTrigger className="md:hidden group-data-[collapsible=icon]:hidden" />
@@ -77,6 +75,7 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({ className }) => {
           </SidebarMenu>
         </ScrollArea>
       </SidebarContent>
+    </>
   );
 };
 
