@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type React from 'react';
@@ -66,42 +67,40 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (storedExamData) {
       try {
         const parsedData = JSON.parse(storedExamData) as ExamData;
-        if (parsedData.startTime || parsedData.endTime) {
+        // Check if crucial data like pdfTextContent exists before fully restoring
+        if (parsedData.pdfTextContent) {
              setExamDataState({
-                ...initialExamData,
-                ...parsedData,
-                isPaused: false, 
+                ...initialExamData, // Start with defaults
+                ...parsedData,      // Overlay stored data
+                isPaused: false,    // Always start unpaused
+                // Ensure currentSection is valid if sections exist
+                currentSection: parsedData.examInfo?.sections?.includes(parsedData.currentSection || "") 
+                                ? parsedData.currentSection 
+                                : parsedData.examInfo?.sections?.[0] || null,
              });
              if (storedSectionsExtracted) {
                 setSectionsExtracted(JSON.parse(storedSectionsExtracted));
              }
         } else {
-            setExamDataState(prev => ({
-                ...prev,
-                pdfTextContent: parsedData.pdfTextContent,
-                examInfo: parsedData.examInfo,
-                questions: parsedData.questions || [], // Restore questions if they were pre-shuffled and stored
-                userAnswers: parsedData.userAnswers || [],
-                currentQuestionIndex: parsedData.currentQuestionIndex || 0,
-                currentSection: parsedData.currentSection || parsedData.examInfo?.sections?.[0] || null,
-            }));
-             if (storedSectionsExtracted) {
-                setSectionsExtracted(JSON.parse(storedSectionsExtracted));
-             } else {
-                setSectionsExtracted([]);
-             }
+            // If essential data is missing, clear and start fresh
+            localStorage.removeItem('examData');
+            localStorage.removeItem('sectionsExtracted');
+            setExamDataState(initialExamData);
+            setSectionsExtracted([]);
         }
       } catch (error) {
         console.error("Failed to parse data from localStorage", error);
         localStorage.removeItem('examData');
         localStorage.removeItem('sectionsExtracted');
+        setExamDataState(initialExamData); // Reset to initial state on error
+        setSectionsExtracted([]);
       }
     }
     setIsInitialized(true);
   }, []);
 
   useEffect(() => {
-    if (isInitialized) {
+    if (isInitialized && examData.pdfTextContent) { // Only save if there's actual content to save
       localStorage.setItem('examData', JSON.stringify(examData));
       localStorage.setItem('sectionsExtracted', JSON.stringify(sectionsExtracted));
     }
@@ -132,7 +131,7 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
       userAnswers: [],
       currentQuestionIndex: 0,
     }));
-    setSectionsExtracted([]);
+    setSectionsExtracted([]); // Reset extracted sections when new info is set
   };
 
   const extractQuestionsForSection = useCallback(async (sectionName: string): Promise<boolean> => {
@@ -164,10 +163,10 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const originalOptions = [...q.options];
         const shuffledOptions = shuffleArray(originalOptions);
         return {
-          id: `q-${sectionName}-${Date.now()}-${index}`,
+          id: `q-${sectionName.replace(/\s+/g, '-')}-${Date.now()}-${index}`,
           questionText: q.questionText,
-          options: shuffledOptions, // Store pre-shuffled options
-          correctAnswer: q.correctAnswerText, // Correct answer text remains the same
+          options: shuffledOptions, 
+          correctAnswer: q.correctAnswerText, 
           section: q.section,
           originalPdfQuestionNumber: q.originalQuestionNumber,
         };
@@ -175,29 +174,43 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setExamData(prev => {
         const otherSectionQuestions = prev.questions.filter(q => q.section !== sectionName);
-        const updatedQuestions = [...otherSectionQuestions, ...newQuestions];
+        let updatedQuestions = [...otherSectionQuestions, ...newQuestions];
         
         updatedQuestions.sort((a, b) => {
             const sectionIndexA = prev.examInfo?.sections.indexOf(a.section) ?? -1;
             const sectionIndexB = prev.examInfo?.sections.indexOf(b.section) ?? -1;
             if (sectionIndexA !== sectionIndexB) return sectionIndexA - sectionIndexB;
-            // Add more sorting logic if needed (e.g., by originalPdfQuestionNumber)
-            const numA = parseInt(a.originalPdfQuestionNumber?.match(/\d+$/)?.[0] || '0');
-            const numB = parseInt(b.originalPdfQuestionNumber?.match(/\d+$/)?.[0] || '0');
+            
+            const numA = parseInt(a.originalPdfQuestionNumber?.match(/\d+/)?.[0] || '0');
+            const numB = parseInt(b.originalPdfQuestionNumber?.match(/\d+/)?.[0] || '0');
+
             if (numA && numB && numA !== numB) return numA - numB;
-            return 0; 
+            // Fallback for non-numeric or missing numbers
+            return (a.originalPdfQuestionNumber || '').localeCompare(b.originalPdfQuestionNumber || '');
         });
         
         const newAnswers = newQuestions.map(q => ({ questionId: q.id, selectedOption: null, isCorrect: null, timeTaken: 0 }));
         const existingAnswers = prev.userAnswers.filter(ans => !newQuestions.find(q => q.id === ans.questionId));
 
+        let newCurrentQuestionIndex = prev.currentQuestionIndex;
+        // If the current section is the one just loaded, and no questions were previously loaded for it,
+        // or if the current index points to a placeholder for this section.
+        if (prev.currentSection === sectionName && newQuestions.length > 0) {
+            const firstIndexOfNewSection = updatedQuestions.findIndex(q => q.section === sectionName);
+            if (firstIndexOfNewSection !== -1) {
+                newCurrentQuestionIndex = firstIndexOfNewSection;
+            }
+        }
+
+
         return {
           ...prev,
           questions: updatedQuestions,
           userAnswers: [...existingAnswers, ...newAnswers],
+          currentQuestionIndex: newCurrentQuestionIndex,
         };
       });
-      setSectionsExtracted(prev => [...prev, sectionName]);
+      setSectionsExtracted(prevExtracted => [...prevExtracted, sectionName]);
       toast({ title: "Section Loaded", description: `${sectionName} questions are ready.` });
       return true;
     } catch (error: any) {
@@ -271,8 +284,8 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (firstQuestionInSectionIndex !== -1) {
             return { ...prev, currentQuestionIndex: firstQuestionInSectionIndex, currentSection: sectionName };
             }
-            toast({title: "Empty Section", description: `No questions found for ${sectionName}.`, variant: "default"});
-            return { ...prev, currentSection: sectionName }; // Navigate to section even if empty, UI will handle display
+            toast({title: "Empty Section", description: `No questions found for ${sectionName}. You can try loading other sections.`, variant: "default"});
+            return { ...prev, currentSection: sectionName }; 
         });
     } else {
         toast({title: "Navigation Failed", description: `Could not load questions for ${sectionName}.`, variant: "destructive"});
@@ -281,11 +294,11 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const pauseExam = () => {
     setExamData(prev => {
-      if (prev.endTime || !prev.startTime) return prev; 
+      if (prev.endTime || !prev.startTime || prev.isPaused) return prev; 
 
       const cqIndex = prev.currentQuestionIndex;
-      if (cqIndex < 0 || cqIndex >= prev.questions.length) { // Check bounds
-        return { ...prev, isPaused: true }; // Current index is invalid, just pause
+      if (cqIndex < 0 || cqIndex >= prev.questions.length) { 
+        return { ...prev, isPaused: true }; 
       }
       const questionToMove = prev.questions[cqIndex];
       
@@ -296,41 +309,32 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let finalCurrentQuestionIndex = cqIndex;
 
       if (!userAnswer || userAnswer.selectedOption === null) { 
-        newQuestionsArray.splice(cqIndex, 1); // Remove from current position
+        newQuestionsArray.splice(cqIndex, 1); 
 
         let insertionPoint = -1;
-        // Find the end of the current question's section
         for (let i = newQuestionsArray.length - 1; i >= 0; i--) {
           if (newQuestionsArray[i].section === questionToMove.section) {
-            insertionPoint = i + 1; // Insert after the last question of this section
+            insertionPoint = i + 1; 
             break;
           }
         }
-        // If section not found (shouldn't happen if questionToMove exists) or it was the only one,
-        // or if trying to insert at the very end of the array if it was the last section
         if (insertionPoint === -1 || insertionPoint > newQuestionsArray.length) {
-            newQuestionsArray.push(questionToMove); // Add to the very end of all questions
+            newQuestionsArray.push(questionToMove); 
         } else {
           newQuestionsArray.splice(insertionPoint, 0, questionToMove);
         }
         
-        // Adjust currentQuestionIndex if it's now out of bounds or pointing to the moved question
         if (cqIndex >= newQuestionsArray.length && newQuestionsArray.length > 0) {
           finalCurrentQuestionIndex = newQuestionsArray.length - 1;
         } else if (newQuestionsArray.length === 0) {
           finalCurrentQuestionIndex = 0; 
-        } else if (finalCurrentQuestionIndex >= cqIndex && cqIndex > 0 && newQuestionsArray[cqIndex-1].section !== questionToMove.section){
-          // If the question before the removed one is from a different section,
-          // it means we removed the first question of a section. Stay at the "new" first question of that section if possible
-          // or the previous question if it was the only one in its section.
-          // This logic can be complex, simplest is to ensure index is valid or go to prev/next valid.
-          // For now, if cqIndex is still valid or became the new last, it's fine. If it pointed beyond, adjust.
-          // The main goal is to not be on the "moved" question. So if cqIndex still points to where `questionToMove` *was*, 
-          // that element is now the *next* question. This is typically okay.
         }
+        // If cqIndex is still valid (it would now point to the *next* question after removal),
+        // or if it was the last question and got adjusted, it should be fine.
+        // The main thing is not to be on the "moved" question when resuming.
       }
 
-      const newCurrentSection = newQuestionsArray.length > 0 && newQuestionsArray[finalCurrentQuestionIndex]
+      const newCurrentSection = newQuestionsArray.length > 0 && finalCurrentQuestionIndex < newQuestionsArray.length && newQuestionsArray[finalCurrentQuestionIndex]
         ? newQuestionsArray[finalCurrentQuestionIndex].section
         : prev.currentSection;
 
@@ -363,11 +367,24 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSectionBeingExtracted(null);
   };
 
-  const totalQuestionsAcrossAllSections = examData.examInfo?.numberOfQuestions || 
-                                           (examData.examInfo?.sections?.length || 0) * (examData.questions.length / (sectionsExtracted.length || 1) || 10);
+  // Estimate total questions if not explicitly provided by AI in examInfo
+  const totalQuestionsAcrossAllSections = 
+    examData.examInfo?.numberOfQuestions || 
+    (examData.examInfo?.sections?.length 
+      ? examData.examInfo.sections.reduce((acc, sectionName) => {
+          // A very rough estimate: assume each section has about 10-20 questions if not specified
+          // This is primarily for progress bar visualization if numberOfQuestions is missing.
+          // A better approach would be for AI to provide question count per section if possible.
+          const sectionQuestions = examData.questions.filter(q => q.section === sectionName).length;
+          return acc + (sectionQuestions > 0 ? sectionQuestions : (sectionsExtracted.includes(sectionName) ? 0 : 10)); // Assume 10 for unloaded sections
+        }, 0)
+      : examData.questions.length > 0 ? examData.questions.length : 0);
+
 
   if (!isInitialized) {
-    return null;
+    // Render nothing or a minimal loader until context is initialized from localStorage
+    // This helps prevent hydration errors if server and client initial states differ wildly.
+    return null; 
   }
 
   return (

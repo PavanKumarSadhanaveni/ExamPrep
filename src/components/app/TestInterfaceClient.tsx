@@ -1,3 +1,4 @@
+
 "use client";
 
 import type React from 'react';
@@ -8,7 +9,7 @@ import QuestionCardClient from './QuestionCardClient';
 import TimerDisplay from './TimerDisplay';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, ArrowRight, CheckSquare, PauseCircle, PlayCircle, AlertTriangle, SquareCheckBig, HelpCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckSquare, PauseCircle, PlayCircle, AlertTriangle, SquareCheckBig, HelpCircle, Loader2, Info } from 'lucide-react';
 import LoadingDots from './LoadingDots';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
@@ -21,7 +22,7 @@ const TestInterfaceClient: React.FC = () => {
     navigateToQuestion, 
     submitExam, 
     answerQuestion, 
-    isLoading: contextIsLoading, // This is general context loading, not section specific.
+    isLoading: contextIsLoading,
     pauseExam, 
     resumeExam,
     extractQuestionsForSection,
@@ -30,22 +31,20 @@ const TestInterfaceClient: React.FC = () => {
   } = useExamContext();
   const { toast } = useToast();
 
-  const { questions, currentQuestionIndex, startTime, endTime, isPaused, examInfo, currentSection } = examData;
-  const [isPageLoading, setIsPageLoading] = useState(true); // For initial mount logic
+  const { questions, currentQuestionIndex, startTime, endTime, isPaused, examInfo, currentSection, userAnswers } = examData;
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  const [unattemptedQuestionsCount, setUnattemptedQuestionsCount] = useState(0);
 
 
   useEffect(() => {
     setIsPageLoading(true);
-    if (!startTime && !endTime) { // Exam not started or finished
+    if (!startTime && !endTime) { 
       if (examInfo && examInfo.sections.length > 0 && sectionsExtracted.includes(examInfo.sections[0])) {
-        // Exam info available, first section extracted -> likely navigated from details page correctly
-        // Or if questions array has content for the first section.
          if (questions.filter(q => q.section === examInfo.sections[0]).length > 0) {
-            setIsPageLoading(false); // Ready to show test
+            setIsPageLoading(false);
             return;
          }
       }
-       // If not properly started, or first section not loaded, redirect.
       toast({ title: "Exam Not Ready", description: "Please start the exam from the details page.", variant: "destructive" });
       router.replace('/exam/details');
       return;
@@ -54,28 +53,32 @@ const TestInterfaceClient: React.FC = () => {
   }, [examInfo, questions, startTime, endTime, sectionsExtracted, router, toast]);
 
 
-  // Effect for background loading of next section
   useEffect(() => {
     if (!examInfo || !currentSection || endTime || isPaused) return;
 
     const currentSectionIndex = examInfo.sections.indexOf(currentSection);
     if (currentSectionIndex === -1 || currentSectionIndex >= examInfo.sections.length - 1) {
-      return; // No next section or current section not found
+      return; 
     }
 
     const nextSectionName = examInfo.sections[currentSectionIndex + 1];
     if (nextSectionName && !sectionsExtracted.includes(nextSectionName) && sectionBeingExtracted !== nextSectionName) {
-      // Trigger extraction for the next section in the background
-      // Don't await, let it run in background
       extractQuestionsForSection(nextSectionName).then(success => {
         if (success) {
           toast({ title: "Next Section Ready", description: `${nextSectionName} questions are now available.`});
-        } else {
-          // Error toast already handled by extractQuestionsForSection
         }
       });
     }
   }, [currentSection, examInfo, sectionsExtracted, sectionBeingExtracted, extractQuestionsForSection, endTime, isPaused, toast]);
+
+  useEffect(() => {
+    if (questions.length > 0) {
+      const unattempted = userAnswers.filter(ans => ans.selectedOption === null).length;
+      setUnattemptedQuestionsCount(unattempted);
+    } else {
+      setUnattemptedQuestionsCount(0);
+    }
+  }, [userAnswers, questions.length]);
 
 
   if (isPageLoading || contextIsLoading) return <LoadingDots text="Loading exam interface..." />;
@@ -84,8 +87,6 @@ const TestInterfaceClient: React.FC = () => {
   const isCurrentSectionLoading = sectionBeingExtracted === currentSection && !sectionsExtracted.includes(currentSection || "");
 
   if (!currentQuestion && !isCurrentSectionLoading && questions.length === 0 && examInfo?.sections?.length > 0) {
-     // This implies we are on a section that has no questions yet (and not currently loading it actively for display)
-     // or the very first section failed to load any questions.
      return (
       <div className="text-center py-10 flex flex-col items-center justify-center h-full">
         <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
@@ -109,7 +110,6 @@ const TestInterfaceClient: React.FC = () => {
 
 
   const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
-  // For overall progress, consider total expected questions if available
   const overallProgress = examInfo?.numberOfQuestions 
     ? (questions.length / examInfo.numberOfQuestions) * 100 
     : (sectionsExtracted.length / (examInfo?.sections?.length || 1)) * 100;
@@ -189,6 +189,12 @@ const TestInterfaceClient: React.FC = () => {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Are you sure you want to submit?</AlertDialogTitle>
                   <AlertDialogDescription>
+                    {unattemptedQuestionsCount > 0 && (
+                      <span className="block mb-2 text-orange-600 dark:text-orange-400">
+                        <AlertTriangle className="inline h-4 w-4 mr-1" />
+                        You have {unattemptedQuestionsCount} unattempted question{unattemptedQuestionsCount > 1 ? 's' : ''}. 
+                      </span>
+                    )}
                     Once submitted, you cannot change your answers. Your results will be calculated.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -222,8 +228,7 @@ const TestInterfaceClient: React.FC = () => {
         {currentQuestion ? (
           <QuestionCardClient
             question={currentQuestion}
-            questionNumber={currentQuestionIndex + 1} // This is overall index of loaded questions
-            totalQuestions={questions.length}
+            questionNumber={currentQuestionIndex + 1}
             isSubmitted={isExamFinished}
           />
         ) : (
@@ -240,34 +245,40 @@ const TestInterfaceClient: React.FC = () => {
       </main>
 
       <footer className={cn("p-4 border-t bg-card flex flex-col sm:flex-row justify-between items-center gap-4", isPaused && "blur-sm pointer-events-none")}>
-        <Button 
-          variant="outline" 
-          onClick={handlePrevious} 
-          disabled={currentQuestionIndex === 0 || isExamFinished || isPaused || isCurrentSectionLoading}
-          className="w-full sm:w-auto"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Previous
-        </Button>
-        {!isExamFinished && currentQuestion && (
-          <Button 
-            variant="ghost" 
-            onClick={handleSkip}
-            disabled={isPaused || isCurrentSectionLoading}
-            className="w-full sm:w-auto text-muted-foreground hover:text-foreground"
-          >
-            <HelpCircle className="mr-2 h-4 w-4" /> Skip Question
-          </Button>
-        )}
-        <Button 
-          onClick={handleNext} 
-          disabled={!currentQuestion || currentQuestionIndex === questions.length - 1 || isExamFinished || isPaused || isCurrentSectionLoading}
-          className="w-full sm:w-auto bg-primary hover:bg-primary/90"
-        >
-          Next <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
+        <div className="text-xs text-muted-foreground flex items-center gap-1">
+          <Info size={14} /> After submission: <span className="text-green-600 font-medium">Correct</span>, <span className="text-red-600 font-medium">Incorrect</span>, <span className="text-yellow-600 font-medium">Skipped</span>.
+        </div>
+        <div className="flex flex-col sm:flex-row justify-end items-center gap-4 w-full sm:w-auto">
+            <Button 
+            variant="outline" 
+            onClick={handlePrevious} 
+            disabled={currentQuestionIndex === 0 || isExamFinished || isPaused || isCurrentSectionLoading}
+            className="w-full sm:w-auto"
+            >
+            <ArrowLeft className="mr-2 h-4 w-4" /> Previous
+            </Button>
+            {!isExamFinished && currentQuestion && (
+            <Button 
+                variant="ghost" 
+                onClick={handleSkip}
+                disabled={isPaused || isCurrentSectionLoading}
+                className="w-full sm:w-auto text-muted-foreground hover:text-foreground"
+            >
+                <HelpCircle className="mr-2 h-4 w-4" /> Skip Question
+            </Button>
+            )}
+            <Button 
+            onClick={handleNext} 
+            disabled={!currentQuestion || currentQuestionIndex === questions.length - 1 || isExamFinished || isPaused || isCurrentSectionLoading}
+            className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+            >
+            Next <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+        </div>
       </footer>
     </div>
   );
 };
 
 export default TestInterfaceClient;
+
