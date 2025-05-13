@@ -1,6 +1,6 @@
 "use client";
 
-import type React from 'react';
+import type React from 'react'; // Keep the type import
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -12,9 +12,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { useExamContext } from '@/hooks/useExamContext';
-import { extractTextFromPdf } from '@/lib/pdfUtils';
 import { extractExamInfoAction } from '@/actions/examActions'; // extractQuestionsAction removed from direct call here
-import LoadingDots from './LoadingDots';
+import { lazy, Suspense } from 'react'; // Import lazy and Suspense
 import { UploadCloud, AlertTriangle } from 'lucide-react';
 // Question types are handled by context now
 
@@ -25,6 +24,9 @@ const formSchema = z.object({
     .refine((files) => files && files[0]?.type === "application/pdf", "File must be a PDF.")
     .refine((files) => files && files[0]?.size <= 10 * 1024 * 1024, "File size must be less than 10MB."),
 });
+
+// Dynamically import the LoadingDots component
+const LazyLoadingDots = lazy(() => import('./LoadingDots'));
 
 type FormData = z.infer<typeof formSchema>;
 
@@ -47,7 +49,9 @@ const FileUploadForm: React.FC = () => {
     const file = data.pdfFile[0];
 
     try {
-      const pdfText = await extractTextFromPdf(file);
+      // Dynamically import extractTextFromPdf
+      const { extractTextFromPdf } = await import('@/lib/pdfUtils');
+      const pdfText = await extractTextFromPdf(file); // Use the dynamically imported function
       if (!pdfText.trim()) {
         throw new Error("Could not extract any text from the PDF. It might be image-based, corrupted, or empty. OCR was attempted if applicable.");
       }
@@ -151,7 +155,9 @@ const FileUploadForm: React.FC = () => {
               )}
             />
             {isLoading && ( // This is the general PDF processing loader
-              <LoadingDots text={currentProcess || "Processing..."} />
+              <Suspense fallback={<div>Loading...</div>}> {/* Wrap with Suspense */}
+                <LazyLoadingDots text={currentProcess || "Processing..."} />
+              </Suspense>
             )}
             {error && !isLoading && (
               <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm flex items-center gap-2">
