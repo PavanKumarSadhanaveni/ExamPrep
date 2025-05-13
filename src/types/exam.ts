@@ -4,8 +4,9 @@ export interface Question {
   id: string;
   questionText: string;
   options: string[];
-  correctAnswer: string; // Store the correct option text or index
+  correctAnswer: string; // Store the correct option text
   section: string;
+  originalPdfQuestionNumber?: string; // Optional: original number from PDF
 }
 
 export interface UserAnswer {
@@ -43,4 +44,13 @@ export interface OverallResults {
   finalScore: number; // Percentage or marks
   totalTimeTaken: number; // in seconds
   sectionSummaries: SectionSummary[];
+}
+
+// Type for AI output when extracting questions
+export interface ExtractedQuestionInfo {
+  questionText: string;
+  options: string[]; // Array of option texts
+  correctAnswerText: string; // The text of the correct option
+  section: string; // The section this question belongs to (must be one of the sections from ExamInfo)
+  originalQuestionNumber?: string; // Optional: original number from PDF if AI can extract it
 }

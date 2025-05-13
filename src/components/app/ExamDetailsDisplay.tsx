@@ -7,32 +7,45 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useExamContext } from '@/hooks/useExamContext';
-import { generateMockQuestions } from '@/lib/questionUtils';
-import { AlertCircle, PlayCircle, Save, Upload, ListChecks } from 'lucide-react';
+// import { generateMockQuestions } from '@/lib/questionUtils'; // No longer primary source for questions
+import { AlertCircle, PlayCircle, Save, Upload, ListChecks, AlertTriangleIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ExtractExamInfoOutput } from '@/ai/flows/extract-exam-info';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import LoadingDots from './LoadingDots';
+
 
 const ExamDetailsDisplay: React.FC = () => {
   const router = useRouter();
-  const { examData, setExamInfo, setQuestions, startExam } = useExamContext();
+  const { examData, setExamInfo, startExam, isLoading: contextIsLoading } = useExamContext();
   const { toast } = useToast();
 
   const [editableInfo, setEditableInfo] = useState<ExtractExamInfoOutput | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isPageLoading, setIsPageLoading] = useState(true);
+
 
   useEffect(() => {
+    setIsPageLoading(true);
     if (examData.examInfo) {
-      // Deep copy to prevent direct mutation of context state
       setEditableInfo(JSON.parse(JSON.stringify(examData.examInfo)));
       setHasUnsavedChanges(false);
-    } else {
-      setEditableInfo(null);
+    } else if (!contextIsLoading) { // If context isn't loading and no examInfo, redirect
+      // This situation implies the user landed here without uploading a PDF
+      // or the data was lost and not restored from localStorage.
+      toast({
+        title: "Missing Exam Data",
+        description: "No exam information found. Please upload a PDF first.",
+        variant: "destructive",
+      });
+      router.replace('/');
+      return; // Stop further processing
     }
-  }, [examData.examInfo]);
+    setIsPageLoading(false);
+  }, [examData.examInfo, contextIsLoading, router, toast]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -48,9 +61,6 @@ const ExamDetailsDisplay: React.FC = () => {
             processedValue = undefined;
         }
       } else if (fieldName === 'sections') {
-        // Assuming sections are comma-separated if edited in a single input.
-        // However, sections are currently displayed as a list and not directly editable via this handler.
-        // This part is more for if sections were a single string input.
         processedValue = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
       }
       
@@ -69,15 +79,16 @@ const ExamDetailsDisplay: React.FC = () => {
         });
         return;
       }
-      if (editableInfo.numberOfQuestions === undefined || editableInfo.numberOfQuestions === null || editableInfo.numberOfQuestions <= 0) {
+       // numberOfQuestions is now primarily informational if AI extracts questions.
+      // Validation might be less strict or adjusted based on AI's output.
+      if (editableInfo.numberOfQuestions !== undefined && editableInfo.numberOfQuestions !== null && editableInfo.numberOfQuestions <= 0) {
          toast({
           title: "Invalid Information",
-          description: "Total Number of Questions must be a positive number.",
+          description: "Total Number of Questions, if specified, must be a positive number.",
           variant: "destructive",
         });
         return;
       }
-      // Ensure totalMarks, if provided, is a non-negative number
       if (editableInfo.totalMarks !== undefined && editableInfo.totalMarks !== null && editableInfo.totalMarks < 0) {
          toast({
           title: "Invalid Information",
@@ -86,7 +97,6 @@ const ExamDetailsDisplay: React.FC = () => {
         });
         return;
       }
-      // Ensure marksPerQuestion, if provided, is a non-negative number
       if (editableInfo.marksPerQuestion !== undefined && editableInfo.marksPerQuestion !== null && editableInfo.marksPerQuestion < 0) {
          toast({
           title: "Invalid Information",
@@ -96,8 +106,7 @@ const ExamDetailsDisplay: React.FC = () => {
         return;
       }
 
-
-      setExamInfo(editableInfo); // Update context
+      setExamInfo(editableInfo);
       setHasUnsavedChanges(false);
       toast({
         title: "Details Saved",
@@ -126,32 +135,25 @@ const ExamDetailsDisplay: React.FC = () => {
       return;
     }
     
-    const { examName, duration, numberOfQuestions } = examData.examInfo;
-
-    if (!examName?.trim() || !duration?.trim() || numberOfQuestions === undefined || numberOfQuestions === null || numberOfQuestions <= 0) {
-      toast({
-        title: "Incomplete Exam Details",
-        description: "Please ensure Exam Name, Duration, and a valid Total Number of Questions are provided and saved.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const questions = generateMockQuestions(examData.examInfo);
-    if (questions.length === 0) {
+    if (!examData.questions || examData.questions.length === 0) {
         toast({
-            title: "No Questions Generated",
-            description: "Could not generate questions. Ensure 'Total Number of Questions' is set and greater than zero, or check PDF.",
+            title: "No Questions Available",
+            description: "Questions could not be loaded or extracted for this exam. Cannot start.",
             variant: "destructive",
         });
         return;
     }
-    setQuestions(questions);
-    startExam();
+
+    startExam(); // This now relies on questions already being in context
     router.push('/exam/test');
   };
+  
+  if (isPageLoading || contextIsLoading) {
+    return <LoadingDots text="Loading exam details..." />;
+  }
 
-  if (!examData.examInfo && !editableInfo) { // Check both context and local state
+
+  if (!editableInfo) { // Should be caught by useEffect redirect, but as a fallback
     return (
       <Card className="w-full max-w-2xl mx-auto shadow-lg">
         <CardHeader>
@@ -171,12 +173,6 @@ const ExamDetailsDisplay: React.FC = () => {
     );
   }
 
-  if (!editableInfo) {
-    // This case handles when examData.examInfo was initially null, but editableInfo hasn't been set yet.
-    // Or if editableInfo becomes null for some reason.
-    return <p>Loading exam details...</p>; // Or a more sophisticated loader
-  }
-
   const { sections } = editableInfo;
 
   return (
@@ -186,10 +182,16 @@ const ExamDetailsDisplay: React.FC = () => {
           {editableInfo.examName || "Exam Details"}
         </CardTitle>
         <CardDescription>
-          Review and edit the extracted exam information. Fill in any missing fields to ensure accurate simulation.
+          Review and edit the extracted exam information. AI-extracted questions: {examData.questions.length}.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {examData.questions.length === 0 && (
+            <div className="p-3 rounded-md bg-yellow-100 border border-yellow-300 text-yellow-700 text-sm flex items-center gap-2">
+                <AlertTriangleIcon className="h-5 w-5 text-yellow-600" />
+                <p>Warning: No questions were extracted or loaded for this exam. Starting the exam may not be possible or may use placeholder content if configured.</p>
+            </div>
+        )}
         <Table>
           <TableHeader>
             <TableRow>
@@ -217,9 +219,10 @@ const ExamDetailsDisplay: React.FC = () => {
               </TableCell>
             </TableRow>
             <TableRow>
-              <TableCell><Label htmlFor="numberOfQuestions">Total Number of Questions*</Label></TableCell>
+              <TableCell><Label htmlFor="numberOfQuestions">Total Number of Questions (AI Extracted: {examData.questions.length > 0 ? examData.questions.length : (editableInfo.numberOfQuestions || 'N/A')})</Label></TableCell>
               <TableCell>
                 <Input id="numberOfQuestions" name="numberOfQuestions" type="number" value={editableInfo.numberOfQuestions ?? ""} onChange={handleChange} placeholder="e.g., 50" />
+                 <p className="text-xs text-muted-foreground mt-1">AI extracted {examData.questions.length} questions. This field can be edited for reference.</p>
               </TableCell>
             </TableRow>
             <TableRow>
@@ -284,8 +287,12 @@ const ExamDetailsDisplay: React.FC = () => {
           <Button onClick={handleSaveChanges} variant="secondary" className="w-full sm:w-auto" disabled={!hasUnsavedChanges}>
             <Save className="mr-2 h-4 w-4" /> Save Changes
           </Button>
-          <Button onClick={handleStartExam} className="w-full sm:w-auto bg-primary hover:bg-primary/90">
-            <PlayCircle className="mr-2 h-5 w-5" /> Start Exam
+          <Button 
+            onClick={handleStartExam} 
+            className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+            disabled={examData.questions.length === 0}
+          >
+            <PlayCircle className="mr-2 h-5 w-5" /> Start Exam ({examData.questions.length} Qs)
           </Button>
         </div>
       </CardFooter>
