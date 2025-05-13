@@ -18,6 +18,17 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Required for tesseract.js to work in the browser
+      config.resolve.fallback = {
+        fs: false,
+        path: false,
+        crypto: false, // tesseract.js can sometimes try to access crypto
+      };
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

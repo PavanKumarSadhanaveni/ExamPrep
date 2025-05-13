@@ -42,17 +42,23 @@ const FileUploadForm: React.FC = () => {
   const onSubmit = async (data: FormData) => {
     setIsLoading(true); // General loading for PDF processing
     setError(null);
-    setCurrentProcess("Processing PDF...");
+    setCurrentProcess("Processing PDF... This may take a moment, especially for scanned documents.");
 
     const file = data.pdfFile[0];
 
     try {
       const pdfText = await extractTextFromPdf(file);
       if (!pdfText.trim()) {
-        throw new Error("Could not extract any text from the PDF. It might be image-based or corrupted.");
+        throw new Error("Could not extract any text from the PDF. It might be image-based, corrupted, or empty. OCR was attempted if applicable.");
       }
       setPdfTextContent(pdfText); // This also resets sectionsExtracted in context
       
+      toast({
+          title: "PDF Processed",
+          description: "Text extracted. If it was a scanned PDF, OCR was attempted. Now analyzing content...",
+          duration: 7000,
+      });
+
       setCurrentProcess("Extracting exam information...");
       const examInfoResult = await extractExamInfoAction(pdfText);
       
@@ -82,15 +88,11 @@ const FileUploadForm: React.FC = () => {
         }
       } else {
         toast({
-          title: "No Sections Identified",
-          description: "AI could not identify distinct sections. All questions will be treated as part of a single 'General' section if found.",
+          title: "No Sections Identified by AI",
+          description: "AI could not identify distinct sections. Please review the extracted details. If no questions are found, manual entry or a different PDF might be needed.",
           variant: "default",
+          duration: 7000,
           });
-        // Attempt to load for a "General" section if no sections were found by AI
-        // This requires extractQuestionsForSection to handle a default/fallback section name if examInfo.sections is empty
-        // For now, we assume `extractQuestionsForSection` will be robust or this case leads to no questions initially.
-        // Or, create a synthetic "General" section in examInfo if none exist.
-        // Let's rely on ExamDetails to show "no questions" if first section extraction fails or no sections.
       }
       
       router.push('/exam/details');
@@ -119,7 +121,7 @@ const FileUploadForm: React.FC = () => {
           Upload Your Exam PDF
         </CardTitle>
         <CardDescription>
-          Upload your exam paper. We'll extract details and start loading questions section by section.
+          Upload your exam paper (max 10MB). We'll extract details and start loading questions section by section. Scanned PDFs may take longer due to OCR.
         </CardDescription>
       </CardHeader>
       <Form {...form}>
