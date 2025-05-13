@@ -8,26 +8,22 @@ import QuestionCardClient from './QuestionCardClient';
 import TimerDisplay from './TimerDisplay';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, ArrowRight, CheckSquare, PauseCircle, AlertTriangle, SquareCheckBig } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckSquare, PauseCircle, PlayCircle, AlertTriangle, SquareCheckBig, HelpCircle } from 'lucide-react';
 import LoadingDots from './LoadingDots';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-
+import { cn } from '@/lib/utils';
 
 const TestInterfaceClient: React.FC = () => {
   const router = useRouter();
-  const { examData, navigateToQuestion, submitExam, answerQuestion, isLoading, setIsLoading } = useExamContext();
-  const { questions, currentQuestionIndex, startTime, endTime } = examData;
+  const { examData, navigateToQuestion, submitExam, answerQuestion, isLoading, pauseExam, resumeExam } = useExamContext();
+  const { questions, currentQuestionIndex, startTime, endTime, isPaused } = examData;
 
   useEffect(() => {
-    // If exam hasn't started (e.g. direct navigation or page refresh without state restoration)
-    // or if questions are not loaded, redirect to details or upload.
-    if (!startTime && !endTime) { // Exam not started and not finished
+    if (!startTime && !endTime) {
       if (questions.length > 0) {
-        // This case might mean context was reloaded, if questions exist but no startTime.
-        // Consider redirecting or re-initializing startExam, for now redirect to details.
         router.replace('/exam/details');
       } else {
-        router.replace('/'); // No questions, redirect to upload
+        router.replace('/');
       }
     }
   }, [questions, startTime, endTime, router]);
@@ -50,48 +46,74 @@ const TestInterfaceClient: React.FC = () => {
   }
 
   const currentQuestion = questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+  const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
 
   const handleNext = () => {
+    if (isPaused) return;
     if (currentQuestionIndex < questions.length - 1) {
       navigateToQuestion(currentQuestionIndex + 1);
     }
   };
 
   const handlePrevious = () => {
+    if (isPaused) return;
     if (currentQuestionIndex > 0) {
       navigateToQuestion(currentQuestionIndex - 1);
     }
   };
 
   const handleSkip = () => {
-    answerQuestion(currentQuestion.id, null); // Mark as skipped
+    if (isPaused || !currentQuestion) return;
+    answerQuestion(currentQuestion.id, null); 
     if (currentQuestionIndex < questions.length - 1) {
       handleNext();
-    } else {
-      // If it's the last question and skipped, user might want to submit
-      // Or stay on the page, for now, just mark as skipped.
     }
   };
 
   const handleSubmitExam = () => {
+    if (isPaused) return;
     submitExam();
     router.push('/exam/results');
+  };
+
+  const handlePauseToggle = () => {
+    if (isPaused) {
+      resumeExam();
+    } else {
+      pauseExam();
+    }
   };
   
   const isExamFinished = !!endTime;
 
   return (
-    <div className="flex flex-col h-full">
-      <header className="p-4 border-b bg-card shadow-sm">
+    <div className="flex flex-col h-full relative">
+      {isPaused && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4">
+          <PauseCircle className="h-16 w-16 text-primary" />
+          <h2 className="text-2xl font-semibold">Exam Paused</h2>
+          <p className="text-muted-foreground">Taking a break? Make sure to come back stronger 💪</p>
+          <Button onClick={handlePauseToggle} size="lg">
+            <PlayCircle className="mr-2 h-5 w-5" /> Resume Exam
+          </Button>
+        </div>
+      )}
+      <header className={cn("p-4 border-b bg-card shadow-sm", isPaused && "blur-sm pointer-events-none")}>
         <div className="flex justify-between items-center">
           <h1 className="text-xl font-semibold text-primary">{examData.examInfo?.examName || "Exam"}</h1>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             {!isExamFinished && <TimerDisplay />}
+            {!isExamFinished && (
+               <Button onClick={handlePauseToggle} variant="outline" size="sm">
+                {isPaused ? <PlayCircle className="mr-0 md:mr-2 h-4 w-4" /> : <PauseCircle className="mr-0 md:mr-2 h-4 w-4" />}
+                <span className="hidden md:inline">{isPaused ? "Resume" : "Pause"}</span>
+              </Button>
+            )}
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" disabled={isExamFinished}>
-                  <CheckSquare className="mr-2 h-4 w-4" /> Submit Exam
+                <Button variant="destructive" disabled={isExamFinished || isPaused} size="sm">
+                  <SquareCheckBig className="mr-0 md:mr-2 h-4 w-4" /> 
+                  <span className="hidden md:inline">Submit Exam</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -112,10 +134,12 @@ const TestInterfaceClient: React.FC = () => {
           </div>
         </div>
         <Progress value={progress} className="mt-3 h-2" />
-        <p className="text-sm text-muted-foreground mt-1 text-right">Question {currentQuestionIndex + 1} of {questions.length}</p>
+        <p className="text-sm text-muted-foreground mt-1 text-right">
+          Question {questions.length > 0 ? currentQuestionIndex + 1 : 0} of {questions.length}
+        </p>
       </header>
 
-      <main className="flex-grow p-4 md:p-6 lg:p-8 overflow-y-auto">
+      <main className={cn("flex-grow p-4 md:p-6 lg:p-8 overflow-y-auto", isPaused && "blur-sm pointer-events-none")}>
         {currentQuestion ? (
           <QuestionCardClient
             question={currentQuestion}
@@ -124,31 +148,32 @@ const TestInterfaceClient: React.FC = () => {
             isSubmitted={isExamFinished}
           />
         ) : (
-          <p>Loading question...</p>
+           questions.length > 0 ? <p>Loading question...</p> : <p>No questions in this exam.</p>
         )}
       </main>
 
-      <footer className="p-4 border-t bg-card flex flex-col sm:flex-row justify-between items-center gap-4">
+      <footer className={cn("p-4 border-t bg-card flex flex-col sm:flex-row justify-between items-center gap-4", isPaused && "blur-sm pointer-events-none")}>
         <Button 
           variant="outline" 
           onClick={handlePrevious} 
-          disabled={currentQuestionIndex === 0 || isExamFinished}
+          disabled={currentQuestionIndex === 0 || isExamFinished || isPaused}
           className="w-full sm:w-auto"
         >
           <ArrowLeft className="mr-2 h-4 w-4" /> Previous
         </Button>
-        {!isExamFinished && (
+        {!isExamFinished && currentQuestion && (
           <Button 
             variant="ghost" 
             onClick={handleSkip}
+            disabled={isPaused}
             className="w-full sm:w-auto text-muted-foreground hover:text-foreground"
           >
-            Skip Question
+            <HelpCircle className="mr-2 h-4 w-4" /> Skip Question
           </Button>
         )}
         <Button 
           onClick={handleNext} 
-          disabled={currentQuestionIndex === questions.length - 1 || isExamFinished}
+          disabled={currentQuestionIndex === questions.length - 1 || isExamFinished || isPaused}
           className="w-full sm:w-auto bg-primary hover:bg-primary/90"
         >
           Next <ArrowRight className="ml-2 h-4 w-4" />

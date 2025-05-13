@@ -25,15 +25,13 @@ const QuestionCardClient: React.FC<QuestionCardClientProps> = ({ question, quest
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
 
   useEffect(() => {
-    // Shuffle options once when the question changes or component mounts
-    // This ensures options are consistent for this question instance if user navigates away and back
     setShuffledOptions([...question.options].sort(() => Math.random() - 0.5));
     setSelectedValue(userAnswer?.selectedOption || null);
   }, [question, userAnswer?.selectedOption]);
 
 
   const handleOptionChange = (value: string) => {
-    if (isSubmitted) return; // Don't allow changes after submission
+    if (isSubmitted || examData.isPaused) return; 
     setSelectedValue(value);
     answerQuestion(question.id, value);
   };
@@ -65,22 +63,24 @@ const QuestionCardClient: React.FC<QuestionCardClientProps> = ({ question, quest
             value={selectedValue ?? undefined} 
             onValueChange={handleOptionChange} 
             className="space-y-3"
-            disabled={isSubmitted}
+            disabled={isSubmitted || examData.isPaused}
         >
           {shuffledOptions.map((option, index) => (
             <Label
               key={index}
               htmlFor={`${question.id}-option-${index}`}
               className={cn(
-                "flex items-center space-x-3 p-4 border rounded-lg cursor-pointer transition-all hover:bg-accent/50",
-                selectedValue === option && !isSubmitted && "ring-2 ring-primary border-primary bg-primary/10",
-                isSubmitted && getOptionStyle(option)
+                "flex items-center space-x-3 p-4 border rounded-lg transition-all",
+                !(isSubmitted || examData.isPaused) && "cursor-pointer hover:bg-accent/50",
+                selectedValue === option && !isSubmitted && !examData.isPaused && "ring-2 ring-primary border-primary bg-primary/10",
+                isSubmitted && getOptionStyle(option),
+                examData.isPaused && "cursor-not-allowed opacity-70"
               )}
             >
               <RadioGroupItem 
                 value={option} 
                 id={`${question.id}-option-${index}`} 
-                disabled={isSubmitted}
+                disabled={isSubmitted || examData.isPaused}
                 className={cn(isSubmitted && selectedValue === option ? "border-primary" : "")}
               />
               <span className="flex-1">{option}</span>

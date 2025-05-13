@@ -25,6 +25,7 @@ export interface ExamData {
   userAnswers: UserAnswer[];
   startTime: number | null; // Timestamp
   endTime: number | null; // Timestamp
+  isPaused: boolean; // Indicates if the exam is currently paused
 }
 
 export interface SectionSummary {

@@ -22,7 +22,7 @@ interface SectionNavigationProps {
 
 const SectionNavigation: React.FC<SectionNavigationProps> = ({ className }) => {
   const { examData, navigateToSection } = useExamContext();
-  const { examInfo, currentSection, questions } = examData;
+  const { examInfo, currentSection, questions, isPaused } = examData;
 
   if (!examInfo || !examInfo.sections || examInfo.sections.length === 0) {
     return null; 
@@ -54,12 +54,17 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({ className }) => {
             {sectionsWithQuestionStatus.map((secInfo) => (
               <SidebarMenuItem key={secInfo.name}>
                 <SidebarMenuButton
-                  onClick={() => navigateToSection(secInfo.name)}
+                  onClick={() => {
+                    if (!isPaused) navigateToSection(secInfo.name);
+                  }}
                   isActive={currentSection === secInfo.name}
                   variant="default"
+                  disabled={isPaused}
                   className={cn(
                     "w-full justify-start",
-                    currentSection === secInfo.name ? "bg-sidebar-accent text-sidebar-accent-foreground" : "hover:bg-sidebar-accent/50"
+                    currentSection === secInfo.name && "bg-sidebar-accent text-sidebar-accent-foreground",
+                    isPaused && "cursor-not-allowed opacity-70",
+                    !isPaused && (currentSection !== secInfo.name) && "hover:bg-sidebar-accent/50"
                   )}
                   tooltip={{
                     children: `${secInfo.name} (${secInfo.answered}/${secInfo.total})`,
