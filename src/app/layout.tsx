@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
@@ -5,6 +6,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { ExamProvider } from '@/contexts/ExamContext';
 import Link from 'next/link';
 import { BookOpenCheck } from 'lucide-react';
+import type React from 'react';
+import CurrentYear from '@/components/app/CurrentYear';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -27,8 +30,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`} suppressHydrationWarning>
         <ExamProvider>
           <header className="bg-card border-b border-border sticky top-0 z-50">
             <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -43,7 +46,7 @@ export default function RootLayout({
           </main>
           <Toaster />
            <footer className="py-6 text-center text-sm text-muted-foreground border-t border-border">
-            © {new Date().getFullYear()} ExamSim. All rights reserved.
+            © <CurrentYear /> ExamSim. All rights reserved.
           </footer>
         </ExamProvider>
       </body>
