@@ -13,10 +13,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { useExamContext } from '@/hooks/useExamContext';
 import { extractTextFromPdf } from '@/lib/pdfUtils';
-import { extractExamInfoAction, extractQuestionsAction } from '@/actions/examActions';
+import { extractExamInfoAction } from '@/actions/examActions'; // extractQuestionsAction removed from direct call here
 import LoadingDots from './LoadingDots';
 import { UploadCloud, AlertTriangle } from 'lucide-react';
-import type { Question, ExtractedQuestionInfo } from '@/types/exam';
+// Question types are handled by context now
 
 const formSchema = z.object({
   pdfFile: z
@@ -31,7 +31,7 @@ type FormData = z.infer<typeof formSchema>;
 const FileUploadForm: React.FC = () => {
   const router = useRouter();
   const { toast } = useToast();
-  const { setPdfTextContent, setExamInfo, setQuestions, setIsLoading, isLoading } = useExamContext();
+  const { setPdfTextContent, setExamInfo, setIsLoading, isLoading, extractQuestionsForSection } = useExamContext();
   const [currentProcess, setCurrentProcess] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
@@ -40,7 +40,7 @@ const FileUploadForm: React.FC = () => {
   });
 
   const onSubmit = async (data: FormData) => {
-    setIsLoading(true);
+    setIsLoading(true); // General loading for PDF processing
     setError(null);
     setCurrentProcess("Processing PDF...");
 
@@ -51,56 +51,52 @@ const FileUploadForm: React.FC = () => {
       if (!pdfText.trim()) {
         throw new Error("Could not extract any text from the PDF. It might be image-based or corrupted.");
       }
-      setPdfTextContent(pdfText);
+      setPdfTextContent(pdfText); // This also resets sectionsExtracted in context
+      
       setCurrentProcess("Extracting exam information...");
-
       const examInfoResult = await extractExamInfoAction(pdfText);
       
       if ('error' in examInfoResult) {
         throw new Error(`Exam Info Error: ${examInfoResult.error}`);
       }
-      setExamInfo(examInfoResult);
+      setExamInfo(examInfoResult); // This sets examInfo and currentSection to first section
       toast({
         title: "Exam Info Extracted",
         description: "Successfully extracted exam metadata.",
       });
 
-      setCurrentProcess("Extracting questions...");
-      const questionsResult = await extractQuestionsAction({
-        pdfTextContent: pdfText,
-        sections: examInfoResult.sections && examInfoResult.sections.length > 0 ? examInfoResult.sections : ["General"],
-      });
-
-      if ('error' in questionsResult) {
-        // Non-critical error for questions, allow user to proceed with exam info.
-        // They can use mock questions or be informed.
-        toast({
-          title: "Question Extraction Issue",
-          description: `${questionsResult.error} Mock questions might be used if available.`,
-          variant: "default", // Not destructive as exam info is still there.
-        });
-        // Set empty questions or let context handle mock generation if desired.
-        // For now, let's set empty and let ExamDetailsDisplay handle it.
-        setQuestions([]);
+      // Now, extract questions only for the first section
+      if (examInfoResult.sections && examInfoResult.sections.length > 0) {
+        const firstSectionName = examInfoResult.sections[0];
+        setCurrentProcess(`Extracting questions for: ${firstSectionName}...`);
+        
+        const success = await extractQuestionsForSection(firstSectionName); // This uses context's own loading states (sectionBeingExtracted)
+        
+        if (!success) {
+           toast({
+            title: `Question Extraction Issue for ${firstSectionName}`,
+            description: `Could not load questions for the first section. You can try again from the exam details page or proceed if other sections load.`,
+            variant: "default",
+          });
+          // Proceed to details page anyway, user can try to load sections from there or see errors.
+        }
       } else {
-        const appQuestions: Question[] = questionsResult.questions.map((q: ExtractedQuestionInfo, index: number) => ({
-          id: `q-${Date.now()}-${index}`, // More unique ID
-          questionText: q.questionText,
-          options: q.options,
-          correctAnswer: q.correctAnswerText,
-          section: q.section,
-          originalPdfQuestionNumber: q.originalQuestionNumber,
-        }));
-        setQuestions(appQuestions);
         toast({
-          title: "Questions Extracted",
-          description: `Successfully extracted ${appQuestions.length} questions.`,
-        });
+          title: "No Sections Identified",
+          description: "AI could not identify distinct sections. All questions will be treated as part of a single 'General' section if found.",
+          variant: "default",
+          });
+        // Attempt to load for a "General" section if no sections were found by AI
+        // This requires extractQuestionsForSection to handle a default/fallback section name if examInfo.sections is empty
+        // For now, we assume `extractQuestionsForSection` will be robust or this case leads to no questions initially.
+        // Or, create a synthetic "General" section in examInfo if none exist.
+        // Let's rely on ExamDetails to show "no questions" if first section extraction fails or no sections.
       }
       
       router.push('/exam/details');
 
-    } catch (err: any) {
+    } catch (err: any)
+     {
       console.error("Error processing PDF:", err);
       const errorMessage = err.message || "An unknown error occurred.";
       setError(errorMessage);
@@ -110,7 +106,7 @@ const FileUploadForm: React.FC = () => {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // General loading finished
       setCurrentProcess("");
     }
   };
@@ -123,7 +119,7 @@ const FileUploadForm: React.FC = () => {
           Upload Your Exam PDF
         </CardTitle>
         <CardDescription>
-          Upload your exam paper in PDF format. We'll extract the details and questions for your practice test.
+          Upload your exam paper. We'll extract details and start loading questions section by section.
         </CardDescription>
       </CardHeader>
       <Form {...form}>
@@ -145,17 +141,17 @@ const FileUploadForm: React.FC = () => {
                       name={name}
                       ref={ref}
                       className="file:text-primary file:font-semibold hover:file:bg-primary/10"
-                      disabled={isLoading}
+                      disabled={isLoading} // General loading for PDF processing
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            {isLoading && (
+            {isLoading && ( // This is the general PDF processing loader
               <LoadingDots text={currentProcess || "Processing..."} />
             )}
-            {error && !isLoading && ( // Only show general error if not loading, specific toasts handle other cases
+            {error && !isLoading && (
               <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5" />
                 <p>{error}</p>

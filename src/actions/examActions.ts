@@ -26,24 +26,29 @@ export async function extractQuestionsAction(input: ExtractQuestionsInput): Prom
   if (!input.pdfTextContent || input.pdfTextContent.trim().length === 0) {
     return { error: "PDF text content is empty for question extraction." };
   }
-  if (!input.sections || input.sections.length === 0) {
-    // If no sections identified, provide a default or handle as an error/warning.
-    // For now, let's proceed with a default 'General' section if AI needs it.
-    // The AI prompt for extractQuestionsFlow should be robust to this.
-    console.warn("No sections provided for question extraction. AI will attempt to categorize generally.");
+  if (!input.allSectionNames || input.allSectionNames.length === 0) {
+    return { error: "All section names must be provided." };
+  }
+  if (!input.targetSectionName || input.targetSectionName.trim().length === 0) {
+    return { error: "Target section name must be provided." };
+  }
+  if (!input.allSectionNames.includes(input.targetSectionName)) {
+    return { error: "Target section name is not in the list of all section names." };
   }
 
   try {
     const questionsOutput = await genAIExtractQuestions(input);
+    // The AI flow now filters for the target section, so if questions are returned, they should be for that section.
+    // We still check if any questions were found.
     if (!questionsOutput.questions || questionsOutput.questions.length === 0) {
-      return { error: "AI could not extract any questions or no questions found matching criteria." };
+      return { error: `AI could not extract any questions for the section "${input.targetSectionName}" or no questions found matching criteria.` };
     }
     return questionsOutput;
   } catch (error) {
-    console.error("Error in extractQuestionsAction:", error);
+    console.error(`Error in extractQuestionsAction for section ${input.targetSectionName}:`, error);
     if (error instanceof Error) {
-        return { error: `Failed to extract questions: ${error.message}` };
+        return { error: `Failed to extract questions for section "${input.targetSectionName}": ${error.message}` };
     }
-    return { error: "An unknown error occurred while extracting questions." };
+    return { error: `An unknown error occurred while extracting questions for section "${input.targetSectionName}".` };
   }
 }
