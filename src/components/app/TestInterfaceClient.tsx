@@ -9,7 +9,7 @@ import QuestionCardClient from './QuestionCardClient';
 import TimerDisplay from './TimerDisplay';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, ArrowRight, CheckSquare, PauseCircle, PlayCircle, AlertTriangle, SquareCheckBig, HelpCircle, Loader2, Info } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckSquare, PauseCircle, PlayCircle, AlertTriangle, SquareCheckBig, HelpCircle, Loader2 } from 'lucide-react';
 import LoadingDots from './LoadingDots';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
@@ -245,8 +245,8 @@ const TestInterfaceClient: React.FC = () => {
       </main>
 
       <footer className={cn("p-4 border-t bg-card flex flex-col sm:flex-row justify-between items-center gap-4", isPaused && "blur-sm pointer-events-none")}>
-        <div className="text-xs text-muted-foreground flex items-center gap-1">
-          <Info size={14} /> After submission: <span className="text-green-600 font-medium">Correct</span>, <span className="text-red-600 font-medium">Incorrect</span>, <span className="text-yellow-600 font-medium">Skipped</span>.
+        <div className="flex-1 hidden sm:block"> {/* Placeholder to balance the flex layout when legend is removed */}
+          
         </div>
         <div className="flex flex-col sm:flex-row justify-end items-center gap-4 w-full sm:w-auto">
             <Button 
