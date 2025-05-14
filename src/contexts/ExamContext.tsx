@@ -54,7 +54,7 @@ export const ExamContext = createContext<ExamContextType | undefined>(undefined)
 
 export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [examData, setExamDataState] = useState<ExamData>(initialExamData);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoadingState] = useState(false); // Renamed to avoid conflict with context value
   const [isInitialized, setIsInitialized] = useState(false);
   const [sectionBeingExtracted, setSectionBeingExtracted] = useState<string | null>(null);
   const [sectionsExtracted, setSectionsExtracted] = useState<string[]>([]);
@@ -66,14 +66,12 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (storedExamData) {
       try {
         const parsedData = JSON.parse(storedExamData) as ExamData;
-        // Basic validation of parsed data structure
         if (parsedData.pdfTextContent && parsedData.examInfo && parsedData.examInfo.sections) {
              setExamDataState({
                 ...initialExamData,
                 ...parsedData,
                 isPaused: false,
                 currentQuestionIndex: (parsedData.startTime && !parsedData.endTime) ? parsedData.currentQuestionIndex : 0,
-                // currentSection should be one of the flat section identifiers from parsedData.examInfo.sections
                 currentSection: (parsedData.startTime && !parsedData.endTime && parsedData.examInfo?.sections?.includes(parsedData.currentSection || ""))
                                 ? parsedData.currentSection
                                 : parsedData.examInfo?.sections?.[0] || null,
@@ -112,40 +110,36 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  const setPdfTextContent = (text: string) => {
+  const setPdfTextContent = useCallback((text: string) => {
     setExamData(prev => ({
       ...initialExamData,
       pdfTextContent: text,
     }));
     setSectionsExtracted([]);
     setSectionBeingExtracted(null);
-  };
+  }, [setExamData]);
 
-  const setExamInfo = (info: ExtractExamInfoOutput) => {
+  const setExamInfo = useCallback((info: ExtractExamInfoOutput) => {
     setExamData(prev => ({
       ...prev,
       examInfo: info,
-      // currentSection is now the first item from the flat `info.sections` list
       currentSection: info.sections && info.sections.length > 0 ? info.sections[0] : null,
       questions: [],
       userAnswers: [],
       currentQuestionIndex: 0,
     }));
     setSectionsExtracted([]);
-  };
+  }, [setExamData]);
 
   const extractQuestionsForSection = useCallback(async (sectionIdentifier: string): Promise<boolean> => {
-    // sectionIdentifier is the flat "Subject - Section" string
     if (!examData.pdfTextContent || !examData.examInfo || !examData.examInfo.sections.includes(sectionIdentifier)) {
       toast({ title: "Error", description: `Cannot extract questions: Missing PDF data or invalid section identifier "${sectionIdentifier}".`, variant: "destructive" });
       return false;
     }
     if (sectionsExtracted.includes(sectionIdentifier)) {
-      console.log(`Section part ${sectionIdentifier} already extracted.`);
       return true;
     }
     if (sectionBeingExtracted === sectionIdentifier) {
-        console.log(`Section part ${sectionIdentifier} is currently being extracted.`);
         return true;
     }
 
@@ -155,15 +149,13 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const result = await extractQuestionsAction({
         pdfTextContent: examData.pdfTextContent,
-        allSectionNames: examData.examInfo.sections, // Pass the flat list of all unique identifiers
-        targetSectionName: sectionIdentifier, // Target this specific unique identifier
+        allSectionNames: examData.examInfo.sections,
+        targetSectionName: sectionIdentifier,
       });
 
       if ('error' in result) {
         toast({ title: `Error: ${sectionIdentifier}`, description: result.error, variant: "destructive" });
         setSectionBeingExtracted(null);
-        // Mark as extracted even on error to prevent re-attempts, or handle retries separately
-        // setSectionsExtracted(prevExtracted => [...new Set([...prevExtracted, sectionIdentifier])]);
         return false;
       }
 
@@ -175,7 +167,7 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
           questionText: q.questionText,
           options: shuffledOptions,
           correctAnswer: q.correctAnswerText,
-          section: q.section, // This should be `sectionIdentifier` as returned by AI
+          section: q.section,
           originalPdfQuestionNumber: q.originalQuestionNumber,
         };
       });
@@ -184,8 +176,6 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const otherSectionQuestions = prev.questions.filter(q => q.section !== sectionIdentifier);
         let updatedQuestions = [...otherSectionQuestions, ...newQuestions];
 
-        // Sort all questions based on the order of section identifiers in examInfo.sections,
-        // then by original PDF number within that section.
         updatedQuestions.sort((a, b) => {
             const sectionIndexA = prev.examInfo?.sections.indexOf(a.section) ?? -1;
             const sectionIndexB = prev.examInfo?.sections.indexOf(b.section) ?? -1;
@@ -229,7 +219,7 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [examData.pdfTextContent, examData.examInfo, sectionsExtracted, sectionBeingExtracted, toast, setExamData]);
 
 
-  const startExam = () => {
+  const startExam = useCallback(() => {
     setExamData(prev => {
       if (!prev.examInfo || !prev.examInfo.sections || prev.examInfo.sections.length === 0) {
          toast({ title: "Cannot Start", description: "No sections defined in exam info.", variant: "destructive" });
@@ -256,9 +246,9 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userAnswers: prev.questions.map(q => ({ questionId: q.id, selectedOption: null, isCorrect: null, timeTaken: 0 })),
       };
     });
-  };
+  }, [setExamData, sectionsExtracted, toast]);
 
-  const answerQuestion = (questionId: string, selectedOption: string | null) => {
+  const answerQuestion = useCallback((questionId: string, selectedOption: string | null) => {
     setExamData(prev => {
       if (prev.isPaused || prev.endTime) return prev;
       const question = prev.questions.find(q => q.id === questionId);
@@ -271,9 +261,9 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ),
       };
     });
-  };
+  }, [setExamData]);
 
-  const navigateToQuestion = (questionIndex: number) => {
+  const navigateToQuestion = useCallback((questionIndex: number) => {
     setExamData(prev => {
       if (prev.isPaused || prev.endTime) return prev;
       if (questionIndex >= 0 && questionIndex < prev.questions.length) {
@@ -281,10 +271,9 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return prev;
     });
-  };
+  }, [setExamData]);
 
-  const navigateToSection = async (sectionIdentifier: string): Promise<void> => {
-    // sectionIdentifier is the flat "Subject - Section" string
+  const navigateToSection = useCallback(async (sectionIdentifier: string): Promise<void> => {
     if (!examData.examInfo || !examData.examInfo.sections.includes(sectionIdentifier)) {
         toast({ title: "Invalid Section Identifier", description: `"${sectionIdentifier}" does not exist in this exam.`, variant: "destructive" });
         return;
@@ -307,16 +296,16 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
               return { ...prev, currentQuestionIndex: firstQuestionInSectionIndex, currentSection: sectionIdentifier };
             } else {
               toast({title: "Empty Section Part", description: `No questions were found by AI for "${sectionIdentifier}".`, variant: "default"});
-              return { ...prev, currentSection: sectionIdentifier, currentQuestionIndex: -1 };
+              return { ...prev, currentSection: sectionIdentifier, currentQuestionIndex: -1 }; // Keep currentQuestionIndex to indicate no question selected or show an empty state.
             }
         });
     } else {
         toast({title: "Navigation Failed", description: `Could not load or navigate to section part "${sectionIdentifier}".`, variant: "destructive"});
-        setExamData(prev => ({ ...prev, currentSection: sectionIdentifier }));
+        setExamData(prev => ({ ...prev, currentSection: sectionIdentifier })); // Update current section even if loading failed, so UI reflects intent
     }
-  };
+  }, [examData.examInfo, sectionsExtracted, sectionBeingExtracted, extractQuestionsForSection, toast, setExamData]);
 
-  const pauseExam = () => {
+  const pauseExam = useCallback(() => {
     setExamData(prev => {
       if (prev.endTime || !prev.startTime || prev.isPaused) return prev;
       const cqIndex = prev.currentQuestionIndex;
@@ -333,7 +322,6 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!userAnswer || userAnswer.selectedOption === null) {
         newQuestionsArray.splice(cqIndex, 1);
         let insertionPoint = -1;
-        // Find the end of the current question's section (using the flat section identifier)
         for (let i = newQuestionsArray.length - 1; i >= 0; i--) {
           if (newQuestionsArray[i].section === questionToMove.section) {
             insertionPoint = i + 1;
@@ -348,7 +336,7 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (cqIndex >= newQuestionsArray.length && newQuestionsArray.length > 0) {
           finalCurrentQuestionIndex = newQuestionsArray.length - 1;
         } else if (newQuestionsArray.length === 0) {
-          finalCurrentQuestionIndex = 0;
+          finalCurrentQuestionIndex = 0; // Or -1 if you prefer to show no question
         }
       }
       const newCurrentSection = (newQuestionsArray.length > 0 && finalCurrentQuestionIndex >=0 && finalCurrentQuestionIndex < newQuestionsArray.length && newQuestionsArray[finalCurrentQuestionIndex])
@@ -363,38 +351,41 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isPaused: true,
       };
     });
-  };
+  }, [setExamData]);
 
-  const resumeExam = () => {
+  const resumeExam = useCallback(() => {
     setExamData(prev => {
       if (prev.endTime || !prev.startTime) return prev;
       return { ...prev, isPaused: false };
     });
-  };
+  }, [setExamData]);
 
-  const submitExam = () => {
+  const submitExam = useCallback(() => {
     setExamData(prev => ({ ...prev, endTime: Date.now(), isPaused: false }));
-  };
+  }, [setExamData]);
 
-  const resetExam = () => {
+  const resetExam = useCallback(() => {
     localStorage.removeItem('examData');
     localStorage.removeItem('sectionsExtracted');
     setExamDataState(initialExamData);
     setSectionsExtracted([]);
     setSectionBeingExtracted(null);
-    setIsLoading(false);
-  };
+    setIsLoadingState(false);
+  }, []);
+
+  const setIsLoading = useCallback((loading: boolean) => {
+    setIsLoadingState(loading);
+  }, []);
+
 
   const totalQuestionsAcrossAllSections =
     examData.examInfo?.overallNumberOfQuestions ||
-    (examData.examInfo?.sections?.length && Array.isArray(examData.examInfo?.subjects)
+    (examData.examInfo?.sections?.length && Array.isArray(examData.examInfo.subjects)
       ? examData.examInfo.subjects.reduce((totalSubjQs, subj) => {
-          const sectionQs = Array.isArray(subj?.subjectSections)
-            ? subj.subjectSections.reduce((totalSecQs, sec) => {
-                return totalSecQs + (sec?.numberOfQuestions || 0);
-              }, 0)
-            : 0;
-          return totalSubjQs + sectionQs;
+          const sectionsInSubject = Array.isArray(subj?.subjectSections) ? subj.subjectSections : [];
+          return totalSubjQs + (sectionsInSubject.reduce((totalSecQs, sec) => {
+            return totalSecQs + (sec?.numberOfQuestions || 0);
+          }, 0));
         }, 0)
       : examData.questions.length > 0 ? examData.questions.length : 0);
 
@@ -416,7 +407,7 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
       resetExam,
       pauseExam,
       resumeExam,
-      isLoading,
+      isLoading: isLoading, // Use the renamed state variable
       setIsLoading,
       sectionBeingExtracted,
       sectionsExtracted,
@@ -427,4 +418,3 @@ export const ExamProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </ExamContext.Provider>
   );
 };
-

@@ -1,14 +1,13 @@
 
 "use client";
 
-import type React from 'react';
-import { useState, useEffect }from 'react';
+import React, { useState, useEffect, useCallback }from 'react'; // Import React
 import { useExamContext } from '@/hooks/useExamContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"; // For subject collapse
-import { ChevronDown, ChevronRight, Loader2, Menu as MenuIcon } from 'lucide-react'; // Using MenuIcon for collapsed state
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { ChevronDown, ChevronRight, Loader2, Menu as MenuIcon } from 'lucide-react';
 import {
   SidebarContent,
   SidebarHeader,
@@ -17,28 +16,25 @@ import {
 } from '@/components/ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-import type { SubjectDetail, SectionDetail } from '@/ai/flows/extract-exam-info'; // Import for type clarity
+import type { SubjectDetail, SectionDetail } from '@/ai/flows/extract-exam-info';
 
 const SectionQuestionNavigator: React.FC = () => {
   const { 
     examData, 
-    navigateToQuestion, 
-    navigateToSection, // This expects the flat "Subject - Section" identifier
-    sectionsExtracted, // Flat list of extracted "Subject - Section" identifiers
-    sectionBeingExtracted, // Flat "Subject - Section" identifier being extracted
+    navigateToQuestion: contextNavigateToQuestion, 
+    navigateToSection: contextNavigateToSection,
+    sectionsExtracted,
+    sectionBeingExtracted,
   } = useExamContext();
   const { toast } = useToast();
   const { examInfo, questions, userAnswers, currentSection: currentFlatSectionId, startTime, isPaused, currentQuestionIndex } = examData;
   
-  // activeUIToggleSubject controls which subject's sections are visually expanded
   const [activeUIToggleSubject, setActiveUIToggleSubject] = useState<string | null>(null);
 
   const { state: sidebarState, isMobile, collapsibleMode, toggleSidebar } = useSidebar();
   const isIconCollapsed = !isMobile && sidebarState === 'collapsed' && collapsibleMode === 'icon';
 
   useEffect(() => {
-    // When the context's currentFlatSectionId changes (e.g., "Physics - Section A"),
-    // automatically expand the corresponding subject in this navigator.
     if (currentFlatSectionId && examInfo?.subjects) {
       const subjectName = examInfo.subjects.find(subj => 
         currentFlatSectionId.startsWith(subj.subjectName)
@@ -47,33 +43,30 @@ const SectionQuestionNavigator: React.FC = () => {
         setActiveUIToggleSubject(subjectName);
       }
     } else if (examInfo?.subjects && examInfo.subjects.length > 0 && !activeUIToggleSubject) {
-      // Default to expanding the first subject if none is active
       setActiveUIToggleSubject(examInfo.subjects[0].subjectName);
     }
   }, [currentFlatSectionId, examInfo?.subjects, activeUIToggleSubject]);
 
-  const handleSubjectHeaderClick = (subjectName: string) => {
+  const handleSubjectHeaderClick = useCallback((subjectName: string) => {
     setActiveUIToggleSubject(prev => prev === subjectName ? null : subjectName);
-  };
+  }, []);
 
-  const handleSectionButtonClick = async (subjectName: string, sectionNameOrType: string) => {
-    const flatSectionIdToNavigate = examInfo?.sections.find(s => s.includes(subjectName) && s.includes(sectionNameOrType)) || `${subjectName} - ${sectionNameOrType}`;
+  const handleSectionButtonClick = useCallback(async (subjectName: string, sectionNameOrType: string) => {
+    const flatSectionIdToNavigate = examInfo?.sections?.find(s => s.includes(subjectName) && s.includes(sectionNameOrType)) || `${subjectName} - ${sectionNameOrType}`;
     
     if (isPaused || !startTime || examData.endTime) {
         toast({ title: "Navigation Disabled", description: "Exam is paused, not started, or finished.", variant: "default" });
         return;
     }
-    await navigateToSection(flatSectionIdToNavigate); 
+    await contextNavigateToSection(flatSectionIdToNavigate); 
     if (isMobile) toggleSidebar();
-  };
+  }, [examInfo?.sections, isPaused, startTime, examData.endTime, contextNavigateToSection, isMobile, toggleSidebar, toast]);
 
-  const handleQuestionPillClick = (flatSectionId: string, questionIndexInFlatSection: number) => {
+  const handleQuestionPillClick = useCallback((flatSectionId: string, questionIndexInFlatSection: number) => {
     if (isPaused || !startTime || examData.endTime) {
         toast({ title: "Navigation Disabled", description: "Exam is paused, not started, or finished.", variant: "default" });
         return;
     }
-    // Find the global index of this question
-    // The questions in examData.questions are already sorted globally
     let count = 0;
     let globalIndex = -1;
     for(let i=0; i < questions.length; i++) {
@@ -87,19 +80,21 @@ const SectionQuestionNavigator: React.FC = () => {
     }
 
     if (globalIndex !== -1) {
-      navigateToQuestion(globalIndex);
+      contextNavigateToQuestion(globalIndex);
       if (isMobile) toggleSidebar();
     } else {
       toast({title: "Error", description: "Could not find the question to navigate.", variant: "destructive"});
     }
-  };
+  }, [isPaused, startTime, examData.endTime, questions, contextNavigateToQuestion, isMobile, toggleSidebar, toast]);
 
   const getQuestionStatusClass = (questionId: string): string => {
     const answer = userAnswers.find(ua => ua.questionId === questionId);
-    if (answer?.selectedOption !== null) {
-      return 'bg-green-500 hover:bg-green-600'; // Answered
+    if (answer?.selectedOption !== null) { // Answered
+      // If submitted, check correctness (not available here directly, but could be added if needed)
+      return 'bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700'; 
     }
-    return 'bg-red-500 hover:bg-red-600'; // Unanswered or Skipped
+    // For now, red means unattempted/skipped. Could differentiate skipped later.
+    return 'bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700'; 
   };
   
   const currentGlobalQuestionId = questions[currentQuestionIndex]?.id;
@@ -129,10 +124,10 @@ const SectionQuestionNavigator: React.FC = () => {
     );
   }
 
-  if (!examInfo || !examInfo.subjects || examInfo.subjects.length === 0) {
+  if (!examInfo || !Array.isArray(examInfo.subjects) || examInfo.subjects.length === 0) {
     return (
       <SidebarContent className="p-4 text-muted-foreground text-sm">
-        No exam structure defined.
+        No exam structure defined or available.
       </SidebarContent>
     );
   }
@@ -159,7 +154,6 @@ const SectionQuestionNavigator: React.FC = () => {
                     className={cn(
                       "w-full justify-between items-center text-sm h-auto py-2 px-2 rounded-md hover:no-underline",
                       "hover:bg-sidebar-accent focus:bg-sidebar-accent",
-                      // Highlight if the current question is within this subject
                       currentFlatSectionId?.startsWith(subject.subjectName) ? "bg-sidebar-secondary text-sidebar-secondary-foreground" : "bg-transparent text-sidebar-foreground",
                       !isExamActive && "opacity-70 cursor-not-allowed"
                     )}
@@ -174,8 +168,8 @@ const SectionQuestionNavigator: React.FC = () => {
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="pt-1 pb-0 pl-3 pr-1 border-l-2 border-sidebar-border ml-3">
-                    {isCurrentSubjectActiveForUI && subject.subjectSections.map((section: SectionDetail) => {
-                      const flatSectionId = examInfo.sections.find(s => s.includes(subject.subjectName) && s.includes(section.sectionNameOrType)) || `${subject.subjectName} - ${section.sectionNameOrType}`;
+                    {isCurrentSubjectActiveForUI && Array.isArray(subject.subjectSections) && subject.subjectSections.map((section: SectionDetail) => {
+                      const flatSectionId = examInfo.sections?.find(s => s.includes(subject.subjectName) && s.includes(section.sectionNameOrType)) || `${subject.subjectName} - ${section.sectionNameOrType}`;
                       const isLoadingThisFlatSection = sectionBeingExtracted === flatSectionId;
                       const isThisFlatSectionExtracted = sectionsExtracted.includes(flatSectionId);
                       const questionsInThisFlatSection = questions.filter(q => q.section === flatSectionId);
@@ -210,7 +204,7 @@ const SectionQuestionNavigator: React.FC = () => {
                                       variant="outline"
                                       size="sm"
                                       className={cn(
-                                        "h-6 w-6 p-0 text-xs rounded", // smaller pills
+                                        "h-6 w-6 p-0 text-xs rounded",
                                         getQuestionStatusClass(q.id),
                                         "text-white font-medium",
                                         q.id === currentGlobalQuestionId && "ring-2 ring-offset-1 ring-primary dark:ring-offset-background",
@@ -251,4 +245,3 @@ const SectionQuestionNavigator: React.FC = () => {
 };
 
 export default SectionQuestionNavigator;
-

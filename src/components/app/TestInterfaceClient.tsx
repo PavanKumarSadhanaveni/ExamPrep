@@ -1,7 +1,7 @@
+
 "use client";
 
-import type React from 'react';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react'; // Import React
 import { useRouter } from 'next/navigation';
 import { useExamContext } from '@/hooks/useExamContext';
 import QuestionCardClient from './QuestionCardClient';
@@ -18,12 +18,12 @@ const TestInterfaceClient: React.FC = () => {
   const router = useRouter();
   const { 
     examData, 
-    navigateToQuestion, 
-    submitExam, 
-    answerQuestion, 
+    navigateToQuestion: contextNavigateToQuestion, 
+    submitExam: contextSubmitExam, 
+    answerQuestion: contextAnswerQuestion, 
     isLoading: contextIsLoading,
-    pauseExam, 
-    resumeExam,
+    pauseExam: contextPauseExam, 
+    resumeExam: contextResumeExam,
     extractQuestionsForSection,
     sectionsExtracted,
     sectionBeingExtracted
@@ -38,7 +38,7 @@ const TestInterfaceClient: React.FC = () => {
   useEffect(() => {
     setIsPageLoading(true);
     if (!startTime && !endTime) { 
-      if (examInfo && examInfo.sections.length > 0 && sectionsExtracted.includes(examInfo.sections[0])) {
+      if (examInfo && examInfo.sections && examInfo.sections.length > 0 && sectionsExtracted.includes(examInfo.sections[0])) {
          if (questions.filter(q => q.section === examInfo.sections[0]).length > 0) {
             setIsPageLoading(false);
             return;
@@ -48,7 +48,7 @@ const TestInterfaceClient: React.FC = () => {
       router.replace('/exam/details');
       return;
     }
-    if (endTime) { // If exam is already finished, redirect to results
+    if (endTime) {
       router.replace('/exam/results');
       return;
     }
@@ -57,7 +57,7 @@ const TestInterfaceClient: React.FC = () => {
 
 
   useEffect(() => {
-    if (!examInfo || !currentSection || endTime || isPaused) return;
+    if (!examInfo || !currentSection || endTime || isPaused || !Array.isArray(examInfo.sections)) return;
 
     const currentSectionIndex = examInfo.sections.indexOf(currentSection);
     if (currentSectionIndex === -1 || currentSectionIndex >= examInfo.sections.length - 1) {
@@ -78,7 +78,6 @@ const TestInterfaceClient: React.FC = () => {
 
   useEffect(() => {
     if (questions.length > 0) {
-      // Count unattempted from the full list of userAnswers, not just for current section
       const unattempted = userAnswers.filter(ans => ans.selectedOption === null).length;
       setUnattemptedQuestionsCount(unattempted);
     } else {
@@ -87,10 +86,50 @@ const TestInterfaceClient: React.FC = () => {
   }, [userAnswers, questions.length]);
 
 
-  if (isPageLoading || contextIsLoading && !currentSection) return <LoadingDots text="Loading exam interface..." />;
-  
   const currentQuestion = questions[currentQuestionIndex];
   const isCurrentSectionLoadingQuestions = sectionBeingExtracted === currentSection && !sectionsExtracted.includes(currentSection || "");
+
+  const handleNext = useCallback(() => {
+    if (isPaused || !currentQuestion) return;
+    if (currentQuestionIndex < questions.length - 1) {
+      contextNavigateToQuestion(currentQuestionIndex + 1);
+    } else {
+        toast({ title: "End of Loaded Questions", description: "You've reached the end of currently loaded questions. More may be loading, or you can submit."})
+    }
+  }, [isPaused, currentQuestion, currentQuestionIndex, questions.length, contextNavigateToQuestion, toast]);
+
+  const handlePrevious = useCallback(() => {
+    if (isPaused || !currentQuestion) return;
+    if (currentQuestionIndex > 0) {
+      contextNavigateToQuestion(currentQuestionIndex - 1);
+    }
+  }, [isPaused, currentQuestion, currentQuestionIndex, contextNavigateToQuestion]);
+
+  const handleSkip = useCallback(() => {
+    if (isPaused || !currentQuestion) return;
+    contextAnswerQuestion(currentQuestion.id, null); 
+    if (currentQuestionIndex < questions.length - 1) {
+      handleNext();
+    } else {
+       toast({ title: "Skipped Last Loaded Question", description: "This was the last loaded question. You can submit or wait for more."})
+    }
+  }, [isPaused, currentQuestion, contextAnswerQuestion, currentQuestionIndex, questions.length, handleNext, toast]);
+
+  const handleSubmitExam = useCallback(() => {
+    if (isPaused) return;
+    contextSubmitExam();
+    router.push('/exam/results');
+  }, [isPaused, contextSubmitExam, router]);
+
+  const handlePauseToggle = useCallback(() => {
+    if (isPaused) {
+      contextResumeExam();
+    } else {
+      contextPauseExam();
+    }
+  }, [isPaused, contextResumeExam, contextPauseExam]);
+  
+  if (isPageLoading || (contextIsLoading && !currentSection)) return <LoadingDots text="Loading exam interface..." />;
 
   if (!currentQuestion && !isCurrentSectionLoadingQuestions && examInfo?.sections?.length > 0) {
     const questionsForCurrentSection = questions.filter(q => q.section === currentSection).length;
@@ -124,53 +163,11 @@ const TestInterfaceClient: React.FC = () => {
     return <LoadingDots text={`Loading questions for ${currentSection}...`} />;
   }
 
-
   const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
-  const overallProgress = examInfo?.numberOfQuestions 
-    ? (questions.length / examInfo.numberOfQuestions) * 100 
-    : (sectionsExtracted.length / (examInfo?.sections?.length || 1)) * 100;
+  const overallProgress = examInfo?.overallNumberOfQuestions && examInfo.overallNumberOfQuestions > 0 && Array.isArray(examInfo.sections)
+    ? (questions.length / examInfo.overallNumberOfQuestions) * 100 
+    : (Array.isArray(examInfo?.sections) && examInfo.sections.length > 0 ? (sectionsExtracted.length / examInfo.sections.length) * 100 : 0);
 
-
-  const handleNext = () => {
-    if (isPaused) return;
-    if (currentQuestionIndex < questions.length - 1) {
-      navigateToQuestion(currentQuestionIndex + 1);
-    } else {
-        toast({ title: "End of Loaded Questions", description: "You've reached the end of currently loaded questions. More may be loading, or you can submit."})
-    }
-  };
-
-  const handlePrevious = () => {
-    if (isPaused) return;
-    if (currentQuestionIndex > 0) {
-      navigateToQuestion(currentQuestionIndex - 1);
-    }
-  };
-
-  const handleSkip = () => {
-    if (isPaused || !currentQuestion) return;
-    answerQuestion(currentQuestion.id, null); 
-    if (currentQuestionIndex < questions.length - 1) {
-      handleNext();
-    } else {
-       toast({ title: "Skipped Last Loaded Question", description: "This was the last loaded question. You can submit or wait for more."})
-    }
-  };
-
-  const handleSubmitExam = () => {
-    if (isPaused) return;
-    submitExam();
-    router.push('/exam/results');
-  };
-
-  const handlePauseToggle = () => {
-    if (isPaused) {
-      resumeExam();
-    } else {
-      pauseExam();
-    }
-  };
-  
   const isExamFinished = !!endTime;
 
   return (
@@ -231,11 +228,11 @@ const TestInterfaceClient: React.FC = () => {
             <p className="text-xs text-muted-foreground text-right">
             Question {questions.length > 0 ? currentQuestionIndex + 1 : 0} of {questions.length} (Loaded so far)
             </p>
-            {examInfo?.numberOfQuestions && examInfo.numberOfQuestions > 0 && (
+            {examInfo?.overallNumberOfQuestions && examInfo.overallNumberOfQuestions > 0 && Array.isArray(examInfo.sections) && examInfo.sections.length > 0 && (
                  <>
-                 <Progress value={overallProgress} className="h-1 bg-secondary/50" title={`Overall progress: ${questions.length} of ${examInfo.numberOfQuestions || 'many'} expected questions loaded`} />
+                 <Progress value={overallProgress} className="h-1 bg-secondary/50" title={`Overall progress: ${questions.length} of ${examInfo.overallNumberOfQuestions || 'many'} expected questions loaded`} />
                  <p className="text-xs text-muted-foreground text-right">
-                    Overall: {sectionsExtracted.length} of {examInfo.sections.length} sections ({questions.length} of ~{examInfo.numberOfQuestions || sectionsExtracted.length * 10 } Qs) loaded
+                    Overall: {sectionsExtracted.length} of {examInfo.sections.length} sections ({questions.length} of ~{examInfo.overallNumberOfQuestions || sectionsExtracted.length * (examInfo.overallNumberOfQuestions / examInfo.sections.length || 10) } Qs) loaded
                  </p>
                  </>
             )}
@@ -246,12 +243,10 @@ const TestInterfaceClient: React.FC = () => {
         {currentQuestion ? (
           <QuestionCardClient
             question={currentQuestion}
-            questionNumber={currentQuestionIndex + 1} // This is the overall question number of loaded questions
+            questionNumber={currentQuestionIndex + 1}
             isSubmitted={isExamFinished}
           />
         ) : (
-           // This case should be rare if loading logic and empty section states are handled above
-           // But as a fallback:
            questions.length > 0 && !isCurrentSectionLoadingQuestions ? <LoadingDots text="Loading question data..." /> : 
            !isCurrentSectionLoadingQuestions && <div className="text-center py-10">
              <AlertTriangle className="mx-auto h-12 w-12 text-orange-400" />
@@ -265,8 +260,7 @@ const TestInterfaceClient: React.FC = () => {
       </main>
 
       <footer className={cn("p-4 border-t bg-card flex flex-col sm:flex-row justify-between items-center gap-4", isPaused && "blur-sm pointer-events-none")}>
-        <div className="flex-1 hidden sm:block"> {/* Placeholder to balance the flex layout */}
-          
+        <div className="flex-1 hidden sm:block">
         </div>
         <div className="flex flex-col sm:flex-row justify-end items-center gap-4 w-full sm:w-auto">
             <Button 
