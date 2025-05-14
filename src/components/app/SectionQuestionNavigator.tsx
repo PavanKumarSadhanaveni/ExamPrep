@@ -1,3 +1,4 @@
+
 "use client";
 
 import type React from 'react';
@@ -6,70 +7,90 @@ import { useExamContext } from '@/hooks/useExamContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"; // For subject collapse
+import { ChevronDown, ChevronRight, Loader2, Menu as MenuIcon } from 'lucide-react'; // Using MenuIcon for collapsed state
 import {
   SidebarContent,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-
+import type { SubjectDetail, SectionDetail } from '@/ai/flows/extract-exam-info'; // Import for type clarity
 
 const SectionQuestionNavigator: React.FC = () => {
   const { 
     examData, 
     navigateToQuestion, 
-    navigateToSection,
-    sectionsExtracted,
-    sectionBeingExtracted,
+    navigateToSection, // This expects the flat "Subject - Section" identifier
+    sectionsExtracted, // Flat list of extracted "Subject - Section" identifiers
+    sectionBeingExtracted, // Flat "Subject - Section" identifier being extracted
   } = useExamContext();
   const { toast } = useToast();
-  const { examInfo, questions, userAnswers, currentSection, startTime, isPaused, currentQuestionIndex } = examData;
+  const { examInfo, questions, userAnswers, currentSection: currentFlatSectionId, startTime, isPaused, currentQuestionIndex } = examData;
   
-  // activeUIToggleSection controls which section's questions are visually expanded in the navigator
-  const [activeUIToggleSection, setActiveUIToggleSection] = useState<string | null>(null);
+  // activeUIToggleSubject controls which subject's sections are visually expanded
+  const [activeUIToggleSubject, setActiveUIToggleSubject] = useState<string | null>(null);
 
   const { state: sidebarState, isMobile, collapsibleMode, toggleSidebar } = useSidebar();
   const isIconCollapsed = !isMobile && sidebarState === 'collapsed' && collapsibleMode === 'icon';
 
-
   useEffect(() => {
-    // When the context's currentSection changes (e.g., by navigating questions in the main panel),
-    // automatically expand that section in this navigator.
-    if (currentSection) {
-      setActiveUIToggleSection(currentSection);
+    // When the context's currentFlatSectionId changes (e.g., "Physics - Section A"),
+    // automatically expand the corresponding subject in this navigator.
+    if (currentFlatSectionId && examInfo?.subjects) {
+      const subjectName = examInfo.subjects.find(subj => 
+        currentFlatSectionId.startsWith(subj.subjectName)
+      )?.subjectName;
+      if (subjectName) {
+        setActiveUIToggleSubject(subjectName);
+      }
+    } else if (examInfo?.subjects && examInfo.subjects.length > 0 && !activeUIToggleSubject) {
+      // Default to expanding the first subject if none is active
+      setActiveUIToggleSubject(examInfo.subjects[0].subjectName);
     }
-  }, [currentSection]);
+  }, [currentFlatSectionId, examInfo?.subjects, activeUIToggleSubject]);
 
-  const handleSectionHeaderClick = async (sectionName: string) => {
-    // If this section is already the active one for UI toggle, and also the current exam section, do nothing or collapse UI.
-    // Otherwise, navigate to it. navigateToSection will handle loading and setting it as current.
-    if (activeUIToggleSection === sectionName && currentSection === sectionName) {
-         setActiveUIToggleSection(null); // Collapse UI if clicked again
-    } else {
-        await navigateToSection(sectionName); 
-        // useEffect will set activeUIToggleSection based on context's currentSection change.
-    }
+  const handleSubjectHeaderClick = (subjectName: string) => {
+    setActiveUIToggleSubject(prev => prev === subjectName ? null : subjectName);
   };
 
-  const handleQuestionPillClick = (sectionName: string, questionIndexInSection: number) => {
+  const handleSectionButtonClick = async (subjectName: string, sectionNameOrType: string) => {
+    const flatSectionIdToNavigate = examInfo?.sections.find(s => s.includes(subjectName) && s.includes(sectionNameOrType)) || `${subjectName} - ${sectionNameOrType}`;
+    
     if (isPaused || !startTime || examData.endTime) {
         toast({ title: "Navigation Disabled", description: "Exam is paused, not started, or finished.", variant: "default" });
         return;
     }
-    const questionsInSection = questions.filter(q => q.section === sectionName);
-    const targetQuestion = questionsInSection[questionIndexInSection];
-    if (targetQuestion) {
-      const globalIndex = questions.findIndex(q => q.id === targetQuestion.id);
-      if (globalIndex !== -1) {
-        navigateToQuestion(globalIndex);
-        if (isMobile) toggleSidebar(); // Close sidebar on mobile after selection
-      }
+    await navigateToSection(flatSectionIdToNavigate); 
+    if (isMobile) toggleSidebar();
+  };
+
+  const handleQuestionPillClick = (flatSectionId: string, questionIndexInFlatSection: number) => {
+    if (isPaused || !startTime || examData.endTime) {
+        toast({ title: "Navigation Disabled", description: "Exam is paused, not started, or finished.", variant: "default" });
+        return;
+    }
+    // Find the global index of this question
+    // The questions in examData.questions are already sorted globally
+    let count = 0;
+    let globalIndex = -1;
+    for(let i=0; i < questions.length; i++) {
+        if (questions[i].section === flatSectionId) {
+            if (count === questionIndexInFlatSection) {
+                globalIndex = i;
+                break;
+            }
+            count++;
+        }
+    }
+
+    if (globalIndex !== -1) {
+      navigateToQuestion(globalIndex);
+      if (isMobile) toggleSidebar();
+    } else {
+      toast({title: "Error", description: "Could not find the question to navigate.", variant: "destructive"});
     }
   };
 
@@ -78,7 +99,6 @@ const SectionQuestionNavigator: React.FC = () => {
     if (answer?.selectedOption !== null) {
       return 'bg-green-500 hover:bg-green-600'; // Answered
     }
-    // Could add a "marked for review" status later if needed with purple
     return 'bg-red-500 hover:bg-red-600'; // Unanswered or Skipped
   };
   
@@ -87,32 +107,32 @@ const SectionQuestionNavigator: React.FC = () => {
   if (isIconCollapsed) {
     return (
       <div className="flex flex-col items-center p-2 h-full">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={toggleSidebar} 
-              className="rounded-full w-10 h-10 mt-1 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              aria-label="Expand Sections"
-            >
-              {/* Use a generic icon like Menu or a custom exam-related one if available */}
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right" align="center">
-            <p>Sections & Questions</p>
-          </TooltipContent>
-        </Tooltip>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={toggleSidebar} 
+                className="rounded-full w-10 h-10 mt-1 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                aria-label="Expand Navigation"
+              >
+                <MenuIcon className="h-5 w-5"/>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right" align="center">
+              <p>Exam Navigation</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     );
   }
 
-
-  if (!examInfo || !examInfo.sections || examInfo.sections.length === 0) {
+  if (!examInfo || !examInfo.subjects || examInfo.subjects.length === 0) {
     return (
       <SidebarContent className="p-4 text-muted-foreground text-sm">
-        No sections defined.
+        No exam structure defined.
       </SidebarContent>
     );
   }
@@ -129,79 +149,101 @@ const SectionQuestionNavigator: React.FC = () => {
       </SidebarHeader>
       <SidebarContent className="p-0">
         <ScrollArea className="h-[calc(100%-4rem)]">
-          <SidebarMenu className="p-2 space-y-1">
-            {examInfo.sections.map((sectionName) => {
-              const isCurrentActiveSection = activeUIToggleSection === sectionName;
-              const isLoadingThisSection = sectionBeingExtracted === sectionName;
-              const areQuestionsLoadedForThisSection = sectionsExtracted.includes(sectionName);
-              const questionsInThisSection = questions.filter(q => q.section === sectionName);
-              const isContextCurrentSection = currentSection === sectionName;
-
+          <Accordion type="multiple" defaultValue={examInfo.subjects.map(s => s.subjectName)} className="w-full p-1 space-y-1">
+            {examInfo.subjects.map((subject: SubjectDetail) => {
+              const isCurrentSubjectActiveForUI = activeUIToggleSubject === subject.subjectName;
               return (
-                <SidebarMenuItem key={sectionName} className="space-y-1">
-                  <Button
-                    variant={isContextCurrentSection ? "secondary" : "ghost"}
+                <AccordionItem value={subject.subjectName} key={subject.subjectName} className="border-none">
+                  <AccordionTrigger
+                    onClick={() => handleSubjectHeaderClick(subject.subjectName)}
                     className={cn(
-                        "w-full justify-start items-center text-sm h-auto py-2 px-2",
-                        !isExamActive && "opacity-70 cursor-not-allowed",
-                        isLoadingThisSection && "opacity-50 cursor-wait"
+                      "w-full justify-between items-center text-sm h-auto py-2 px-2 rounded-md hover:no-underline",
+                      "hover:bg-sidebar-accent focus:bg-sidebar-accent",
+                      // Highlight if the current question is within this subject
+                      currentFlatSectionId?.startsWith(subject.subjectName) ? "bg-sidebar-secondary text-sidebar-secondary-foreground" : "bg-transparent text-sidebar-foreground",
+                      !isExamActive && "opacity-70 cursor-not-allowed"
                     )}
-                    onClick={() => isExamActive && !isLoadingThisSection && handleSectionHeaderClick(sectionName)}
-                    disabled={!isExamActive || isLoadingThisSection}
-                    aria-expanded={isCurrentActiveSection}
+                    disabled={!isExamActive}
                   >
-                    {isLoadingThisSection ? (
-                      <Loader2 className="h-4 w-4 mr-2 shrink-0 animate-spin" />
-                    ) : isCurrentActiveSection ? (
-                      <ChevronDown className="h-4 w-4 mr-2 shrink-0" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 mr-2 shrink-0" />
-                    )}
-                    <span className="truncate flex-grow">{sectionName}</span>
-                    {!areQuestionsLoadedForThisSection && !isLoadingThisSection && <span className="text-xs text-amber-500 ml-auto">(Needs Load)</span>}
-                    {areQuestionsLoadedForThisSection && questionsInThisSection.length === 0 && <span className="text-xs text-red-500 ml-auto">(No Qs)</span>}
-                  </Button>
-
-                  {isCurrentActiveSection && areQuestionsLoadedForThisSection && (
-                    <div className="pl-4 pr-1 py-2 border-l-2 border-sidebar-border ml-3">
-                      {questionsInThisSection.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5">
-                          {questionsInThisSection.map((q, index) => (
-                            <Button
-                              key={q.id}
-                              variant="outline"
-                              size="sm"
-                              className={cn(
-                                "h-7 w-7 p-0 text-xs rounded-md",
-                                getQuestionStatusClass(q.id),
-                                "text-white font-medium",
-                                q.id === currentGlobalQuestionId && "ring-2 ring-offset-2 ring-primary dark:ring-offset-background",
-                                !isExamActive && "opacity-70 cursor-not-allowed"
-                              )}
-                              onClick={() => handleQuestionPillClick(sectionName, index)}
-                              disabled={!isExamActive}
-                              title={`Question ${index + 1}`}
-                            >
-                              {index + 1}
-                            </Button>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">No questions loaded for this section.</p>
-                      )}
+                    <div className="flex items-center gap-2 flex-grow truncate">
+                        {isCurrentSubjectActiveForUI ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+                        <span className="font-medium truncate">{subject.subjectName}</span>
                     </div>
-                  )}
-                   {isCurrentActiveSection && isLoadingThisSection && (
-                     <div className="pl-4 pr-1 py-2 border-l-2 border-sidebar-border ml-3">
-                        <div className="flex items-center text-xs text-muted-foreground">
-                            <Loader2 className="h-3 w-3 mr-1.5 animate-spin"/> Loading questions...
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        ({subject.numberOfQuestionsInSubject ?? 'N/A'} Qs)
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-1 pb-0 pl-3 pr-1 border-l-2 border-sidebar-border ml-3">
+                    {isCurrentSubjectActiveForUI && subject.subjectSections.map((section: SectionDetail) => {
+                      const flatSectionId = examInfo.sections.find(s => s.includes(subject.subjectName) && s.includes(section.sectionNameOrType)) || `${subject.subjectName} - ${section.sectionNameOrType}`;
+                      const isLoadingThisFlatSection = sectionBeingExtracted === flatSectionId;
+                      const isThisFlatSectionExtracted = sectionsExtracted.includes(flatSectionId);
+                      const questionsInThisFlatSection = questions.filter(q => q.section === flatSectionId);
+                      const isContextCurrentFlatSection = currentFlatSectionId === flatSectionId;
+
+                      return (
+                        <div key={flatSectionId} className="mb-1">
+                          <Button
+                            variant={isContextCurrentFlatSection ? "secondary" : "ghost"}
+                            className={cn(
+                              "w-full justify-start items-center text-xs h-auto py-1.5 px-2 mb-1",
+                              !isExamActive && "opacity-70 cursor-not-allowed",
+                              isLoadingThisFlatSection && "opacity-50 cursor-wait"
+                            )}
+                            onClick={() => isExamActive && !isLoadingThisFlatSection && handleSectionButtonClick(subject.subjectName, section.sectionNameOrType)}
+                            disabled={!isExamActive || isLoadingThisFlatSection}
+                            title={section.sectionNameOrType}
+                          >
+                            {isLoadingThisFlatSection ? <Loader2 className="h-3 w-3 mr-1.5 shrink-0 animate-spin" /> : null}
+                            <span className="truncate flex-grow text-left">{section.sectionNameOrType}</span>
+                            {!isThisFlatSectionExtracted && !isLoadingThisFlatSection && <span className="text-xs text-amber-500 ml-auto">(Needs Load)</span>}
+                            {isThisFlatSectionExtracted && questionsInThisFlatSection.length === 0 && !isLoadingThisFlatSection && <span className="text-xs text-red-500 ml-auto">(No Qs)</span>}
+                          </Button>
+
+                          {isContextCurrentFlatSection && isThisFlatSectionExtracted && !isLoadingThisFlatSection && (
+                            <div className="pl-2 pr-1 py-1 border-l-2 border-sidebar-border/50 ml-2">
+                              {questionsInThisFlatSection.length > 0 ? (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {questionsInThisFlatSection.map((q, index) => (
+                                    <Button
+                                      key={q.id}
+                                      variant="outline"
+                                      size="sm"
+                                      className={cn(
+                                        "h-6 w-6 p-0 text-xs rounded", // smaller pills
+                                        getQuestionStatusClass(q.id),
+                                        "text-white font-medium",
+                                        q.id === currentGlobalQuestionId && "ring-2 ring-offset-1 ring-primary dark:ring-offset-background",
+                                        !isExamActive && "opacity-70 cursor-not-allowed"
+                                      )}
+                                      onClick={() => handleQuestionPillClick(flatSectionId, index)}
+                                      disabled={!isExamActive}
+                                      title={`Question ${index + 1}`}
+                                    >
+                                      {index + 1}
+                                    </Button>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted-foreground italic">No questions found for this section part.</p>
+                              )}
+                            </div>
+                          )}
+                          {isContextCurrentFlatSection && isLoadingThisFlatSection && (
+                            <div className="pl-2 pr-1 py-1 border-l-2 border-sidebar-border/50 ml-2">
+                                <div className="flex items-center text-xs text-muted-foreground">
+                                    <Loader2 className="h-3 w-3 mr-1.5 animate-spin"/> Loading questions...
+                                </div>
+                            </div>
+                          )}
                         </div>
-                     </div>
-                   )}
-                </SidebarMenuItem>
+                      );
+                    })}
+                  </AccordionContent>
+                </AccordionItem>
               );
             })}
-          </SidebarMenu>
+          </Accordion>
         </ScrollArea>
       </SidebarContent>
     </>
@@ -209,3 +251,4 @@ const SectionQuestionNavigator: React.FC = () => {
 };
 
 export default SectionQuestionNavigator;
+
