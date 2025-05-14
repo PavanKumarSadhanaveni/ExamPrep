@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -203,7 +204,7 @@ const SidebarProvider = React.forwardRef<
               } as React.CSSProperties
             }
             className={cn(
-              "group/sidebar-wrapper flex min-h-svh w-full has-[[data-variant=inset]]:bg-sidebar",
+              "group/sidebar-wrapper flex min-h-svh w-full has-[[data-variant=inset]]:bg-sidebar", // This is the main flex container
               className
             )}
             ref={ref}
@@ -228,7 +229,8 @@ const ResizeHandle = () => {
     setIsResizing(true);
 
     const startX = e.clientX;
-    const sidebarElement = handleRef.current?.closest('[data-sidebar="sidebar-inner-wrapper"]');
+    // Get the sidebar element which is the direct parent of the resize handle if we move it inside
+    const sidebarElement = handleRef.current?.parentElement; 
     if (!sidebarElement) return;
     
     const initialPixelWidth = sidebarElement.getBoundingClientRect().width;
@@ -236,7 +238,7 @@ const ResizeHandle = () => {
     const onMouseMove = (moveEvent: MouseEvent) => {
       const currentX = moveEvent.clientX;
       let deltaX = currentX - startX;
-      if (side === 'right') { // If sidebar is on the right, dragging left increases width
+      if (side === 'right') { 
         deltaX = -deltaX;
       }
       
@@ -261,7 +263,7 @@ const ResizeHandle = () => {
       ref={handleRef} 
       onMouseDown={onMouseDown} 
       className={cn(
-        "absolute top-0 bottom-0 w-1.5 bg-transparent group-hover/sidebar:bg-sidebar-border/30 hover:!bg-sidebar-border/80 transition-colors duration-150 z-20",
+        "absolute top-0 bottom-0 w-1.5 bg-transparent group-hover/sidebar:bg-sidebar-border/30 hover:!bg-sidebar-border/80 transition-colors duration-150 z-20", // z-20 to be above content
         side === 'left' ? "right-0 cursor-col-resize" : "left-0 cursor-col-resize"
       )}
       title="Resize sidebar"
@@ -272,9 +274,7 @@ const ResizeHandle = () => {
 
 const Sidebar = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<"div"> & {
-    // side, variant, collapsible props are now primarily controlled by Provider
-  }
+  React.ComponentProps<"div">
 >(
   (
     {
@@ -287,25 +287,9 @@ const Sidebar = React.forwardRef<
     const { isMobile, state, openMobile, setOpenMobile, collapsibleMode, side, resizableWidth } = useSidebar()
 
     if (isMobile === undefined) {
-      return null;
+      return null; // Or some skeleton/loader
     }
 
-    if (collapsibleMode === "none" && !isMobile) { // Non-collapsible desktop
-      return (
-        <div
-          className={cn(
-            "flex h-full flex-col bg-sidebar text-sidebar-foreground",
-            className
-          )}
-          style={{ width: resizableWidth }}
-          ref={ref}
-          {...props}
-        >
-          {children}
-        </div>
-      )
-    }
-    
     if (isMobile) {
       return (
         <Sheet open={openMobile} onOpenChange={setOpenMobile}>
@@ -321,43 +305,32 @@ const Sidebar = React.forwardRef<
       )
     }
 
-    // Desktop rendering (isMobile is false)
-    const currentDesktopWidth = state === "expanded" ? 'var(--sidebar-width-expanded)' : 'var(--sidebar-width-collapsed)';
-    
+    // Desktop rendering (isMobile is false) - In-flow layout
     return (
       <div
         ref={ref}
-        className={cn("group/sidebar peer hidden md:block text-sidebar-foreground relative", className)} // Added relative for ResizeHandle
+        className={cn(
+          "group/sidebar hidden md:flex flex-col text-sidebar-foreground relative bg-sidebar transition-all duration-200 ease-linear h-svh", // In-flow, takes full height
+          // Width classes based on state and collapsible mode
+          collapsibleMode === "icon" && state === "collapsed"
+            ? "w-[var(--sidebar-width-collapsed)]" // p-0 is handled by SidebarContent in icon mode
+            : "w-[var(--sidebar-width-expanded)]",
+          // Border based on side
+          side === "left" ? "border-r border-sidebar-border" : "border-l border-sidebar-border",
+          className
+        )}
+        style={{
+          width: (collapsibleMode === "icon" && state === "collapsed")
+            ? 'var(--sidebar-width-collapsed)' // Fixed width for icon mode collapsed
+            : resizableWidth, // Dynamic resizable width when expanded
+        }}
         data-state={state}
-        data-collapsible={state === "collapsed" ? collapsibleMode : ""}
+        data-collapsible={collapsibleMode}
         data-side={side}
         {...props}
       >
-        <div
-          className={cn(
-            "duration-200 relative h-svh bg-transparent transition-[width] ease-linear",
-            "group-data-[collapsible=offcanvas]:w-0",
-             collapsibleMode === "icon" && state === "collapsed" ? "w-[var(--sidebar-width-collapsed)]" : `w-[var(--sidebar-width-expanded)]`
-          )}
-          style={{ width: state === "expanded" ? resizableWidth : (collapsibleMode === "icon" ? SIDEBAR_WIDTH_ICON : "0") }}
-        />
-        <div
-          data-sidebar="sidebar-inner-wrapper" // Added for resize handle to find parent width
-          className={cn(
-            "duration-200 fixed inset-y-0 z-10 hidden h-svh transition-[left,right,width] ease-linear md:flex flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow",
-            side === "left"
-              ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width-expanded)*-1)] border-r border-sidebar-border"
-              : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width-expanded)*-1)] border-l border-sidebar-border",
-            collapsibleMode === "icon" && state === "collapsed" ? "w-[var(--sidebar-width-collapsed)] p-0" : "w-[var(--sidebar-width-expanded)]",
-             // variant === "floating" || variant === "inset" // These variants are less critical for now
-              // ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
-              // : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l"
-          )}
-           style={{ width: state === "expanded" ? resizableWidth : (collapsibleMode === "icon" ? SIDEBAR_WIDTH_ICON : "0") }}
-        >
-          {children}
-          {state === "expanded" && collapsibleMode !== "none" && <ResizeHandle />}
-        </div>
+        {children}
+        {state === "expanded" && collapsibleMode !== "none" && <ResizeHandle />}
       </div>
     )
   }
@@ -390,6 +363,9 @@ const SidebarTrigger = React.forwardRef<
 })
 SidebarTrigger.displayName = "SidebarTrigger"
 
+// SidebarRail might be less relevant for a pure in-flow design,
+// as the ResizeHandle is now part of the Sidebar itself.
+// Keeping it for now in case specific floating variants are re-introduced.
 const SidebarRail = React.forwardRef<
   HTMLButtonElement,
   React.ComponentProps<"button">
@@ -423,34 +399,12 @@ const SidebarInset = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"main">
 >(({ className, ...props }, ref) => {
-  const { open, isMobile, resizableWidth, collapsibleMode, state } = useSidebar();
-  
-  let marginLeftValue = "0px";
-  if (!isMobile) {
-    if (open) {
-      marginLeftValue = resizableWidth;
-    } else if (collapsibleMode === "icon") {
-      marginLeftValue = SIDEBAR_WIDTH_ICON;
-    }
-  }
-  // This logic needs to align with how the layout pushes content.
-  // The current `peer` based styling might be complex with dynamic width.
-  // For now, let's assume the parent layout handles pushing content.
-  // The `peer-data-[variant=inset]` logic will likely need adjustments if we want `SidebarInset` to react to resizableWidth.
-
+  // With in-flow sidebar, SidebarInset just needs to be flex-1
   return (
     <main
       ref={ref}
       className={cn(
-        "relative flex min-h-svh flex-1 flex-col bg-background",
-        // Dynamic margin based on sidebar state (simplified example, might need more robust solution)
-        // This requires the Sidebar to NOT be position:fixed for this to work well, or for SidebarInset to calculate its margin correctly.
-        // The provided "peer" classes are for a specific layout structure.
-        // If Sidebar is fixed, SidebarInset should have padding-left.
-        // If Sidebar is in flow, SidebarInset is fine.
-        // Given current structure, Sidebar is fixed on desktop, so padding-left on SidebarInset is better.
-        !isMobile && state === "expanded" && collapsibleMode !== "offcanvas" && `md:pl-[var(--sidebar-width-expanded)]`,
-        !isMobile && state === "collapsed" && collapsibleMode === "icon" && `md:pl-[var(--sidebar-width-collapsed)]`,
+        "relative flex min-h-svh flex-1 flex-col bg-background", // flex-1 causes it to take remaining space
         className
       )}
       {...props}
@@ -526,12 +480,14 @@ const SidebarContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div">
 >(({ className, ...props }, ref) => {
+  const { collapsibleMode, state } = useSidebar();
   return (
     <div
       ref={ref}
       data-sidebar="content"
       className={cn(
-        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:group-data-[state=collapsed]:overflow-hidden",
+        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto",
+        collapsibleMode === "icon" && state === "collapsed" && "overflow-hidden p-0", // No padding in icon collapsed mode
         className
       )}
       {...props}
