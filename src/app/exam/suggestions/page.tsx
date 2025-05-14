@@ -89,7 +89,7 @@ export default function SuggestionPage() {
             <h3 className="font-semibold text-lg mb-2 text-primary">💡 What You Can Do Now</h3>
             <ul className="list-disc list-inside ml-4 space-y-3 text-sm">
               <li>
-                You can <Link href="/" className="text-primary hover:underline font-medium">go back and try uploading a different PDF</Link>. 
+                You can <Link href="/upload" className="text-primary hover:underline font-medium">go back and try uploading a different PDF</Link>. 
                 A clearer, text-based version usually works best!
               </li>
               <li>
@@ -113,7 +113,7 @@ export default function SuggestionPage() {
               </Link>
             </Button>
             <Button asChild className="w-full sm:w-auto">
-              <Link href="/">
+              <Link href="/upload">
                 <UploadCloud className="mr-2 h-4 w-4" />
                 Upload Different PDF
               </Link>

@@ -72,7 +72,7 @@ const ExamDetailsDisplay: React.FC = () => {
         description: "No exam information found. Please upload a PDF first.",
         variant: "destructive",
       });
-      router.replace('/');
+      router.replace('/upload'); // Changed from '/' to '/upload'
     }
   }, [examData.examInfo, contextIsLoading, router, toast]);
   
@@ -158,7 +158,7 @@ const ExamDetailsDisplay: React.FC = () => {
       <Card className="w-full max-w-2xl mx-auto shadow-lg">
         <CardHeader><CardTitle className="flex items-center gap-2 text-destructive"><AlertCircle /> No Exam Information</CardTitle></CardHeader>
         <CardContent><p>Exam information could not be loaded. Please try uploading the PDF again.</p></CardContent>
-        <CardFooter><Button onClick={() => router.push('/')} variant="outline"><Upload className="mr-2 h-4 w-4" /> Upload New PDF</Button></CardFooter>
+        <CardFooter><Button onClick={() => router.push('/upload')} variant="outline"><Upload className="mr-2 h-4 w-4" /> Upload New PDF</Button></CardFooter> 
       </Card>
     );
   }
@@ -313,7 +313,7 @@ const ExamDetailsDisplay: React.FC = () => {
         </div>
       </CardContent>
       <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-6">
-        <Button variant="outline" onClick={() => router.push('/')} className="w-full sm:w-auto"><Upload className="mr-2 h-4 w-4" /> Upload Different PDF</Button>
+        <Button variant="outline" onClick={() => router.push('/upload')} className="w-full sm:w-auto"><Upload className="mr-2 h-4 w-4" /> Upload Different PDF</Button>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <Button onClick={handleSaveChanges} variant="secondary" className="w-full sm:w-auto" disabled={!hasUnsavedChanges || !editableInfo || contextIsLoading}><Save className="mr-2 h-4 w-4" /> Save Changes</Button>
           <Button onClick={handleStartExam} className="w-full sm:w-auto bg-primary hover:bg-primary/90" disabled={startButtonDisabled || !editableInfo || contextIsLoading}>

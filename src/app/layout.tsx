@@ -28,10 +28,10 @@ const geistMono = Geist_Mono({
 // Metadata defined here will not be automatically picked up by Next.js
 // for static generation because this is a Client Component.
 // To set metadata for SEO, it should be exported from a Server Component.
-const metadata: Metadata = {
-  title: 'ExamSim - AI Powered Exam Simulator',
-  description: 'Upload your exam PDF and simulate test conditions with AI assistance.',
-};
+// For now, we'll keep it simple. If SEO is critical, this metadata object
+// should be moved to a server component (e.g., a new src/app/metadata.ts or similar strategy)
+// For the purpose of this layout being a client component, we acknowledge static metadata here
+// won't be used by Next.js for generation but can be used for dynamic title setting if needed.
 
 export default function RootLayout({
   children,
@@ -42,25 +42,19 @@ export default function RootLayout({
 
   useEffect(() => {
     setIsMounted(true);
-    // If dynamic title/description setting is needed from this client component, it can be done here:
-    // document.title = metadata.title as string;
-    // const metaDescriptionTag = document.querySelector('meta[name="description"]');
-    // if (metaDescriptionTag && metadata.description) {
-    //   metaDescriptionTag.setAttribute('content', metadata.description);
-    // }
+    // Example of how you could set title dynamically if needed from a client component
+    // document.title = "ExamSim - AI Powered Exam Simulator"; 
   }, []);
 
-  // Render a fallback or null until component is mounted
-  // This helps prevent hydration mismatches with classNames or client-side logic.
-  // The font variables are now from module scope, so `fontVariables` state is not needed.
+
   if (!isMounted) {
+    // Consistent fallback to avoid hydration issues with dynamic classes
+    // Using suppressHydrationWarning on html and body
     return (
       <html lang="en" suppressHydrationWarning>
         <head>
-          {/* Basic title for initial load, will be overridden if using document.title */}
           <title>Loading ExamSim...</title>
         </head>
-        {/* Use a generic body class for the fallback to avoid potential mismatches before full client mount */}
         <body className="antialiased flex flex-col min-h-screen" suppressHydrationWarning>
           <div className="flex-grow container mx-auto px-4 py-8 text-center">Loading application...</div>
         </body>
@@ -68,7 +62,6 @@ export default function RootLayout({
     );
   }
 
-  // Construct the className string for the body tag using the module-scoped font variables.
   const bodyClassName = `${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`;
 
   return (
