@@ -11,10 +11,10 @@ export default function HomePage() {
       <section className="text-center py-12 md:py-20">
         <Rocket className="mx-auto h-16 w-16 text-primary mb-6" />
         <h1 className="text-4xl md:text-5xl font-bold mb-6">
-          Welcome to <span className="text-primary">ExamSim</span>!
+          Welcome to <span className="text-primary">ExamPrep</span>!
         </h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-          Transform your PDF exam papers into interactive practice tests. ExamSim uses cutting-edge AI to help you prepare for your exams like never before.
+          Transform your PDF exam papers into interactive practice tests. ExamPrep uses cutting-edge AI to help you prepare for your exams like never before.
         </p>
         <Button asChild size="lg" className="text-lg px-8 py-6">
           <Link href="/upload">
@@ -27,18 +27,18 @@ export default function HomePage() {
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>
             <img 
-              src="https://placehold.co/600x400.png?text=ExamSim+Interface" 
-              alt="ExamSim Interface Illustration" 
+              src="https://placehold.co/600x400.png?text=ExamPrep+Interface" 
+              alt="ExamPrep Interface Illustration" 
               className="rounded-lg shadow-xl"
               data-ai-hint="app interface education"
             />
           </div>
           <div>
             <h2 className="text-3xl font-semibold mb-6 flex items-center">
-              <HelpCircle className="h-8 w-8 text-primary mr-3" /> What is ExamSim?
+              <HelpCircle className="h-8 w-8 text-primary mr-3" /> What is ExamPrep?
             </h2>
             <p className="text-muted-foreground mb-4 text-base leading-relaxed">
-              ExamSim is an intelligent platform designed to make your exam preparation more effective and engaging. Simply upload your exam paper in PDF format, and our AI will:
+              ExamPrep is an intelligent platform designed to make your exam preparation more effective and engaging. Simply upload your exam paper in PDF format, and our AI will:
             </p>
             <ul className="space-y-3 text-base">
               <li className="flex items-start">
@@ -64,7 +64,7 @@ export default function HomePage() {
 
       <section className="py-12 md:py-16 bg-secondary/30 rounded-lg px-6">
         <h2 className="text-3xl font-semibold mb-8 text-center">
-          Why Use <span className="text-primary">ExamSim</span>?
+          Why Use <span className="text-primary">ExamPrep</span>?
         </h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {[
@@ -92,7 +92,7 @@ export default function HomePage() {
 
       <section className="py-12 md:py-20">
         <h2 className="text-3xl font-semibold mb-10 text-center">
-          How to Use <span className="text-primary">ExamSim</span>
+          How to Use <span className="text-primary">ExamPrep</span>
         </h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 relative">
           {/* Decorative line - optional */}
