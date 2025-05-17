@@ -43,7 +43,7 @@ export default function RootLayout({
   useEffect(() => {
     setIsMounted(true);
     // Example of how you could set title dynamically if needed from a client component
-    // document.title = "ExamPrep - AI Powered Exam Simulator"; 
+    // document.title = "ExamPrep - AI Powered Exam Simulator";
   }, []);
 
 
@@ -54,6 +54,7 @@ export default function RootLayout({
       <html lang="en" suppressHydrationWarning>
         <head>
           <title>Loading ExamPrep...</title>
+          <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         </head>
         <body className="antialiased flex flex-col min-h-screen" suppressHydrationWarning>
           <div className="flex-grow container mx-auto px-4 py-8 text-center">Loading application...</div>
@@ -66,6 +67,11 @@ export default function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <title>ExamPrep - AI Powered Exam Simulator</title>
+        <meta name="description" content="Upload your exam PDF and simulate test conditions with AI assistance." />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+      </head>
       <body className={bodyClassName} suppressHydrationWarning>
         <ExamProvider>
           <header className="bg-card border-b border-border sticky top-0 z-50">

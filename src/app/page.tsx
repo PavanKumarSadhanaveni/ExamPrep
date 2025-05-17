@@ -4,8 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CheckCircle, HelpCircle, Rocket, UploadCloud } from "lucide-react";
 import Link from "next/link";
 import type React from "react";
+import ImageSlideshow from "@/components/app/ImageSlideshow"; // Import the new component
 
 export default function HomePage() {
+  const slideshowImages = [
+    { src: "https://placehold.co/1200x675.png?text=ExamPrep+Feature+1", alt: "ExamPrep Feature 1: AI Analysis", dataAiHint: "AI analysis exam" },
+    { src: "https://placehold.co/1200x675.png?text=ExamPrep+Feature+2", alt: "ExamPrep Feature 2: Interactive Test", dataAiHint: "interactive test interface" },
+    { src: "https://placehold.co/1200x675.png?text=ExamPrep+Feature+3", alt: "ExamPrep Feature 3: Detailed Results", dataAiHint: "exam results report" },
+    { src: "https://placehold.co/1200x675.png?text=ExamPrep+Feature+4", alt: "ExamPrep Feature 4: Easy PDF Upload", dataAiHint: "pdf upload process" },
+  ];
+
   return (
     <div className="container mx-auto py-8 px-4">
       <section className="text-center py-12 md:py-20">
@@ -23,24 +31,25 @@ export default function HomePage() {
         </Button>
       </section>
 
+      {/* Image Slideshow Section */}
       <section className="py-12 md:py-16">
-        <div className="grid md:grid-cols-2 gap-12 items-center">
-          <div>
-            <img 
-              src="https://placehold.co/600x400.png?text=ExamPrep+Interface" 
-              alt="ExamPrep Interface Illustration" 
-              className="rounded-lg shadow-xl"
-              data-ai-hint="app interface education"
-            />
-          </div>
-          <div>
-            <h2 className="text-3xl font-semibold mb-6 flex items-center">
+        <h2 className="text-3xl font-semibold mb-8 text-center">
+          See <span className="text-primary">ExamPrep</span> in Action
+        </h2>
+        <ImageSlideshow slides={slideshowImages} />
+      </section>
+
+      <section className="py-12 md:py-16">
+        <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+           {/* Original content for "What is ExamPrep?" can be placed here or adjusted if the slideshow takes up this space */}
+          <div className="lg:col-span-2"> {/* Making this full width if slideshow is prominent */}
+            <h2 className="text-3xl font-semibold mb-6 flex items-center justify-center lg:justify-start">
               <HelpCircle className="h-8 w-8 text-primary mr-3" /> What is ExamPrep?
             </h2>
-            <p className="text-muted-foreground mb-4 text-base leading-relaxed">
+            <p className="text-muted-foreground mb-4 text-base leading-relaxed text-center lg:text-left">
               ExamPrep is an intelligent platform designed to make your exam preparation more effective and engaging. Simply upload your exam paper in PDF format, and our AI will:
             </p>
-            <ul className="space-y-3 text-base">
+            <ul className="space-y-3 text-base max-w-2xl mx-auto lg:mx-0">
               <li className="flex items-start">
                 <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-1 shrink-0" />
                 <span>Analyze the PDF to understand its structure: subjects, sections, question types, duration, and marking schemes.</span>
@@ -96,9 +105,9 @@ export default function HomePage() {
         </h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 relative">
           {/* Decorative line - optional */}
-          <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-0.5 bg-border -translate-y-1/2 -z-10" 
+          <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-0.5 bg-border -translate-y-1/2 -z-10"
                style={{ width: 'calc(100% - 8rem)', margin: '0 4rem' }}></div>
-          
+
           {[
             { step: 1, title: "Upload Your PDF", description: "Click 'Get Started' and select your exam paper (PDF format).", icon: <UploadCloud size={36} className="text-primary mb-3"/> },
             { step: 2, title: "Review Details", description: "Our AI analyzes the PDF. Review the extracted exam structure, subjects, and sections.", icon: <CheckCircle size={36} className="text-primary mb-3"/> },
