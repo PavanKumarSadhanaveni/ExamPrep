@@ -78,7 +78,7 @@ const HintBot: React.FC<HintBotProps> = ({ currentQuestion, isExamFinished }) =>
             <p className="text-xs text-muted-foreground">Need a nudge for this question?</p>
           </div>
 
-          <ScrollArea className="h-auto max-h-[200px] p-4 text-sm space-y-2">
+          <ScrollArea className="h-auto max-h-60 p-4 text-sm space-y-2"> {/* Increased max-h from 200px to max-h-60 (240px) */}
             {activeQuestionHints && activeQuestionHints.length === 0 && hintsRemaining > 0 && !hintRequestLoading && (
               <p className="text-muted-foreground italic">Click "Get Hint" to receive your first clue.</p>
             )}
