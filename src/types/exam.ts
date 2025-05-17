@@ -1,3 +1,4 @@
+
 import type { ExtractExamInfoOutput } from '@/ai/flows/extract-exam-info';
 
 export interface Question {
@@ -14,6 +15,7 @@ export interface UserAnswer {
   selectedOption: string | null; // null if skipped
   isCorrect: boolean | null; // null if skipped
   timeTaken: number; // in seconds, for future use
+  hintsTaken: Array<{ level: number, timestamp: number }>; // Store level and timestamp of each hint
 }
 
 export interface ExamData {
@@ -34,7 +36,9 @@ export interface SectionSummary {
   correctAnswers: number;
   wrongAnswers: number;
   skippedAnswers: number;
-  score: number;
+  score: number; // Percentage score for the section
+  rawScore: number; // Raw score (e.g. marks obtained)
+  maxScore: number; // Max possible score for the section
 }
 
 export interface OverallResults {
@@ -42,9 +46,11 @@ export interface OverallResults {
   correctAnswers: number;
   wrongAnswers: number;
   skippedAnswers: number;
-  finalScore: number; // Percentage or marks
+  finalScore: number; // Overall percentage
   totalTimeTaken: number; // in seconds
   sectionSummaries: SectionSummary[];
+  overallRawScore: number;
+  overallMaxScore: number;
 }
 
 // Type for AI output when extracting questions

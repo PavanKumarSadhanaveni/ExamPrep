@@ -1,4 +1,37 @@
-import type { ExamData, OverallResults, SectionSummary, Question } from '@/types/exam';
+
+import type { ExamData, OverallResults, SectionSummary, Question, UserAnswer } from '@/types/exam';
+
+// Define penalty percentages for each hint level
+const HINT_PENALTIES = {
+  1: 0.10, // 10% for level 1 hint
+  2: 0.15, // Additional 15% for level 2 hint
+  3: 0.15, // Additional 15% for level 3 hint
+};
+
+// Function to calculate the score for a single question considering hints
+function calculateQuestionScore(question: Question, userAnswer: UserAnswer | undefined, marksPerQuestion: number): number {
+  if (!userAnswer || userAnswer.selectedOption === null) {
+    return 0; // Skipped questions get 0 marks
+  }
+
+  let score = userAnswer.isCorrect ? marksPerQuestion : 0;
+
+  if (userAnswer.isCorrect && userAnswer.hintsTaken && userAnswer.hintsTaken.length > 0) {
+    let totalPenaltyPercentage = 0;
+    userAnswer.hintsTaken.forEach(hint => {
+      if (hint.level === 1) totalPenaltyPercentage += HINT_PENALTIES[1];
+      else if (hint.level === 2) totalPenaltyPercentage += HINT_PENALTIES[2];
+      else if (hint.level === 3) totalPenaltyPercentage += HINT_PENALTIES[3];
+    });
+    // Ensure penalty doesn't exceed 100% of the question's marks
+    const penaltyAmount = Math.min(marksPerQuestion, marksPerQuestion * totalPenaltyPercentage);
+    score -= penaltyAmount;
+  }
+  
+  // Ensure score doesn't go below zero if incorrect and hints were taken (though hints usually apply to correct answers)
+  return Math.max(0, score); 
+}
+
 
 export function calculateResults(examData: ExamData): OverallResults {
   const { questions, userAnswers, startTime, endTime, examInfo } = examData;
@@ -12,94 +45,99 @@ export function calculateResults(examData: ExamData): OverallResults {
       finalScore: 0,
       totalTimeTaken: 0,
       sectionSummaries: [],
+      overallRawScore: 0,
+      overallMaxScore: 0,
     };
   }
 
-  let totalCorrect = 0;
-  let totalWrong = 0;
-  let totalSkipped = 0;
+  let totalCorrectAnswersCount = 0;
+  let totalWrongAnswersCount = 0;
+  let totalSkippedAnswersCount = 0;
+  let overallAchievedMarks = 0;
+  let overallMaximumMarks = 0;
 
-  const sectionMap: { [key: string]: { name: string, total: number, correct: number, wrong: number, skipped: number, questions: Question[] } } = {};
+  const sectionMap: { [key: string]: { 
+    name: string, 
+    totalQuestions: number, 
+    correctAnswers: number, 
+    wrongAnswers: number, 
+    skippedAnswers: number, 
+    achievedMarks: number,
+    maximumMarks: number 
+  } } = {};
+
+  // Determine default marks per question if not specified at subject/section level
+  const defaultMarksPerQuestion = examInfo?.overallTotalMarks && examInfo.overallNumberOfQuestions && examInfo.overallNumberOfQuestions > 0
+    ? examInfo.overallTotalMarks / examInfo.overallNumberOfQuestions
+    : 1;
 
   questions.forEach(q => {
+    const sectionInfo = examInfo?.subjects
+        .flatMap(subj => subj.subjectSections.map(sec => ({...sec, subjectName: subj.subjectName})))
+        .find(secDetail => {
+            const flatSectionId = examInfo.sections?.find(s => s.includes(secDetail.subjectName) && s.includes(secDetail.sectionNameOrType)) || `${secDetail.subjectName} - ${secDetail.sectionNameOrType}`;
+            return flatSectionId === q.section;
+        });
+
+    const marksPerThisQuestion = sectionInfo?.marksPerQuestion || defaultMarksPerQuestion;
+    
     if (!sectionMap[q.section]) {
-      sectionMap[q.section] = { name: q.section, total: 0, correct: 0, wrong: 0, skipped: 0, questions: [] };
+      sectionMap[q.section] = { 
+        name: q.section, 
+        totalQuestions: 0, 
+        correctAnswers: 0, 
+        wrongAnswers: 0, 
+        skippedAnswers: 0,
+        achievedMarks: 0,
+        maximumMarks: 0
+      };
     }
-    sectionMap[q.section].total++;
-    sectionMap[q.section].questions.push(q);
+    sectionMap[q.section].totalQuestions++;
+    sectionMap[q.section].maximumMarks += marksPerThisQuestion;
+    overallMaximumMarks += marksPerThisQuestion;
 
     const userAnswer = userAnswers.find(ans => ans.questionId === q.id);
+    const questionScore = calculateQuestionScore(q, userAnswer, marksPerThisQuestion);
+    sectionMap[q.section].achievedMarks += questionScore;
+    overallAchievedMarks += questionScore;
+
     if (!userAnswer || userAnswer.selectedOption === null) {
-      totalSkipped++;
-      sectionMap[q.section].skipped++;
+      totalSkippedAnswersCount++;
+      sectionMap[q.section].skippedAnswers++;
     } else if (userAnswer.isCorrect) {
-      totalCorrect++;
-      sectionMap[q.section].correct++;
+      totalCorrectAnswersCount++;
+      sectionMap[q.section].correctAnswers++;
     } else {
-      totalWrong++;
-      sectionMap[q.section].wrong++;
+      totalWrongAnswersCount++;
+      sectionMap[q.section].wrongAnswers++;
     }
   });
 
   const sectionSummaries: SectionSummary[] = Object.values(sectionMap).map(sec => {
-    const marksPerQ = examInfo?.marksPerQuestion || 1; // Assume 1 mark if not specified
-    // Simplified negative marking: subtract 1/4 of marksPerQuestion for wrong answers
-    // This logic can be made more sophisticated based on actual negativeMarking string from AI.
-    let negativeMarkingFactor = 0;
-    if (examInfo?.negativeMarking && examInfo.negativeMarking.toLowerCase() !== 'none' && examInfo.negativeMarking.toLowerCase() !== 'no') {
-        // Basic check, can be improved to parse "0.25 marks" or "1/4" etc.
-        if (examInfo.negativeMarking.includes("1/4") || examInfo.negativeMarking.includes("0.25")) {
-            negativeMarkingFactor = 0.25;
-        } else if (examInfo.negativeMarking.includes("1/3") || examInfo.negativeMarking.includes("0.33")) {
-             negativeMarkingFactor = 1/3;
-        }
-        // Add more parsing logic if needed
-    }
-    
-    const sectionScore = (sec.correct * marksPerQ) - (sec.wrong * marksPerQ * negativeMarkingFactor);
-    const maxSectionScore = sec.total * marksPerQ;
-    
     return {
       name: sec.name,
-      totalQuestions: sec.total,
-      correctAnswers: sec.correct,
-      wrongAnswers: sec.wrong,
-      skippedAnswers: sec.skipped,
-      score: maxSectionScore > 0 ? Math.max(0, (sectionScore / maxSectionScore) * 100) : 0, // Percentage score for section
+      totalQuestions: sec.totalQuestions,
+      correctAnswers: sec.correctAnswers,
+      wrongAnswers: sec.wrongAnswers,
+      skippedAnswers: sec.skippedAnswers,
+      score: sec.maximumMarks > 0 ? Math.max(0, (sec.achievedMarks / sec.maximumMarks) * 100) : 0,
+      rawScore: sec.achievedMarks,
+      maxScore: sec.maximumMarks,
     };
   });
   
-  const totalMarksValue = examInfo?.totalMarks;
-  let finalScorePercentage = 0;
-
-  if (totalMarksValue && totalMarksValue > 0) {
-    // Calculate score based on total marks if available
-    const marksPerQ = examInfo?.marksPerQuestion || (questions.length > 0 ? totalMarksValue / questions.length : 1);
-    let negativeMarkingFactor = 0;
-     if (examInfo?.negativeMarking && examInfo.negativeMarking.toLowerCase() !== 'none' && examInfo.negativeMarking.toLowerCase() !== 'no') {
-        if (examInfo.negativeMarking.includes("1/4") || examInfo.negativeMarking.includes("0.25")) {
-            negativeMarkingFactor = 0.25;
-        } else if (examInfo.negativeMarking.includes("1/3") || examInfo.negativeMarking.includes("0.33")) {
-             negativeMarkingFactor = 1/3;
-        }
-    }
-    const achievedMarks = (totalCorrect * marksPerQ) - (totalWrong * marksPerQ * negativeMarkingFactor);
-    finalScorePercentage = (achievedMarks / totalMarksValue) * 100;
-  } else if (questions.length > 0) {
-    // Fallback to percentage of correct answers if total marks not specified
-    finalScorePercentage = (totalCorrect / questions.length) * 100;
-  }
-
-
+  const finalScorePercentage = overallMaximumMarks > 0 ? (overallAchievedMarks / overallMaximumMarks) * 100 : 0;
   const totalTimeTaken = startTime && endTime ? Math.floor((endTime - startTime) / 1000) : 0;
 
   return {
     totalQuestions: questions.length,
-    correctAnswers: totalCorrect,
-    wrongAnswers: totalWrong,
-    skippedAnswers: totalSkipped,
-    finalScore: Math.max(0, parseFloat(finalScorePercentage.toFixed(2))), // Ensure score is not negative
+    correctAnswers: totalCorrectAnswersCount,
+    wrongAnswers: totalWrongAnswersCount,
+    skippedAnswers: totalSkippedAnswersCount,
+    finalScore: Math.max(0, parseFloat(finalScorePercentage.toFixed(2))),
     totalTimeTaken,
     sectionSummaries,
+    overallRawScore: overallAchievedMarks,
+    overallMaxScore: overallMaximumMarks,
   };
 }
