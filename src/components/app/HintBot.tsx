@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { useExamContext } from "@/hooks/useExamContext";
 import type { Question } from "@/types/exam";
-import { Bot, Loader2 } from "lucide-react"; // Removed MessageSquareQuestion as Bot is used
+import { Bot, Loader2 } from "lucide-react";
 import { ScrollArea } from '../ui/scroll-area';
 
 interface HintBotProps {
@@ -25,19 +25,14 @@ const HintBot: React.FC<HintBotProps> = ({ currentQuestion, isExamFinished }) =>
 
   const [isOpen, setIsOpen] = useState(false);
 
-  // Reset hints display when question changes or popover closes
   useEffect(() => {
-    // Check if activeQuestionHints is an array before accessing its length
     if (!isOpen && activeQuestionHints && activeQuestionHints.length > 0) {
       // Potentially clear activeQuestionHints here if they should only live while popover is open
       // For now, they persist until next question to allow re-opening popover to see them.
     }
-  }, [isOpen, currentQuestion, activeQuestionHints]); // Depend on activeQuestionHints reference
+  }, [isOpen, currentQuestion, activeQuestionHints]); 
 
   if (!currentQuestion || isExamFinished || isPaused) {
-    // Don't render the bot if no current question, exam is finished, or paused.
-    // The parent component (TestInterfaceClient) also has similar logic for hiding it,
-    // but this ensures the HintBot itself doesn't try to render its trigger.
     return null;
   }
 
@@ -58,7 +53,7 @@ const HintBot: React.FC<HintBotProps> = ({ currentQuestion, isExamFinished }) =>
           id="hint-bot-trigger"
           variant="outline"
           size="icon"
-          className="rounded-full h-10 w-10 flex items-center justify-center z-[60]" // Ensured flex centering and z-index
+          className="rounded-full h-10 w-10 flex items-center justify-center z-[60]" 
           disabled={!currentQuestion || isExamFinished || isPaused}
           aria-label="Get a hint from AI Bot"
           title={`Hints used: ${hintsUsedCount}/3`}
@@ -69,8 +64,8 @@ const HintBot: React.FC<HintBotProps> = ({ currentQuestion, isExamFinished }) =>
       <PopoverContent
         side="top"
         align="end"
-        className="w-80 shadow-xl rounded-lg p-0" // Removed default padding to control it fully
-        onOpenAutoFocus={(e) => e.preventDefault()} // Prevent focus trap on open
+        className="w-80 shadow-xl rounded-lg p-0" 
+        onOpenAutoFocus={(e) => e.preventDefault()} 
       >
         <div className="flex flex-col">
           <div className="p-4 border-b bg-secondary/50 rounded-t-lg">
@@ -78,7 +73,7 @@ const HintBot: React.FC<HintBotProps> = ({ currentQuestion, isExamFinished }) =>
             <p className="text-xs text-muted-foreground">Need a nudge for this question?</p>
           </div>
 
-          <ScrollArea className="h-auto max-h-60 p-4 text-sm space-y-2"> {/* Increased max-h from 200px to max-h-60 (240px) */}
+          <ScrollArea className="h-auto max-h-60 p-4 text-sm space-y-2">
             {activeQuestionHints && activeQuestionHints.length === 0 && hintsRemaining > 0 && !hintRequestLoading && (
               <p className="text-muted-foreground italic">Click "Get Hint" to receive your first clue.</p>
             )}
