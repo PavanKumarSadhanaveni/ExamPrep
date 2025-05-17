@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useExamContext } from '@/hooks/useExamContext';
 import QuestionCardClient from './QuestionCardClient';
 import TimerDisplay from './TimerDisplay';
+import HintBot from './HintBot'; // Import HintBot
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ArrowLeft, ArrowRight, CheckSquare, PauseCircle, PlayCircle, AlertTriangle, SquareCheckBig, HelpCircle, Loader2 } from 'lucide-react';
@@ -184,7 +185,7 @@ const TestInterfaceClient: React.FC = () => {
       )}
       <header className={cn("p-4 border-b bg-card shadow-sm", isPaused && "blur-sm pointer-events-none")}>
         <div className="flex justify-between items-center">
-          <h1 className="text-xl font-semibold text-primary truncate" title={examData.examInfo?.examName || "Exam"}>{examData.examInfo?.examName || "Exam"}</h1>
+          <h1 className="text-xl font-semibold text-primary truncate" title={examData.examInfo?.examName || "Exam"}>{examData.examInfo?.examName || "ExamPrep"}</h1>
           <div className="flex items-center gap-2 md:gap-4 shrink-0">
             {!isExamFinished && <TimerDisplay />}
             {!isExamFinished && (
@@ -261,32 +262,36 @@ const TestInterfaceClient: React.FC = () => {
 
       <footer className={cn("p-4 border-t bg-card flex flex-col sm:flex-row justify-between items-center gap-4", isPaused && "blur-sm pointer-events-none")}>
         <div className="flex-1 hidden sm:block">
+           {/* Space for future elements or just a spacer */}
         </div>
-        <div className="flex flex-col sm:flex-row justify-end items-center gap-4 w-full sm:w-auto">
-            <Button 
-            variant="outline" 
-            onClick={handlePrevious} 
-            disabled={currentQuestionIndex === 0 || isExamFinished || isPaused || isCurrentSectionLoadingQuestions || !currentQuestion}
-            className="w-full sm:w-auto"
-            >
-            <ArrowLeft className="mr-2 h-4 w-4" /> Previous
-            </Button>
-            {!isExamFinished && currentQuestion && (
-            <Button 
-                variant="ghost" 
-                onClick={handleSkip}
-                disabled={isPaused || isCurrentSectionLoadingQuestions || !currentQuestion}
-                className="w-full sm:w-auto text-muted-foreground hover:text-foreground"
-            >
-                <HelpCircle className="mr-2 h-4 w-4" /> Skip Question
-            </Button>
+        <div className="flex flex-col sm:flex-row justify-end items-center gap-3 w-full sm:w-auto">
+            {currentQuestion && !isExamFinished && !isPaused && (
+              <HintBot currentQuestion={currentQuestion} isExamFinished={isExamFinished} />
             )}
             <Button 
-            onClick={handleNext} 
-            disabled={!currentQuestion || currentQuestionIndex === questions.length - 1 || isExamFinished || isPaused || isCurrentSectionLoadingQuestions}
-            className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+              variant="outline" 
+              onClick={handlePrevious} 
+              disabled={currentQuestionIndex === 0 || isExamFinished || isPaused || isCurrentSectionLoadingQuestions || !currentQuestion}
+              className="w-full sm:w-auto"
             >
-            Next <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowLeft className="mr-2 h-4 w-4" /> Previous
+            </Button>
+            {!isExamFinished && currentQuestion && (
+              <Button 
+                  variant="ghost" 
+                  onClick={handleSkip}
+                  disabled={isPaused || isCurrentSectionLoadingQuestions || !currentQuestion}
+                  className="w-full sm:w-auto text-muted-foreground hover:text-foreground"
+              >
+                  <HelpCircle className="mr-2 h-4 w-4" /> Skip Question
+              </Button>
+            )}
+            <Button 
+              onClick={handleNext} 
+              disabled={!currentQuestion || currentQuestionIndex === questions.length - 1 || isExamFinished || isPaused || isCurrentSectionLoadingQuestions}
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+            >
+              Next <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
         </div>
       </footer>
@@ -295,3 +300,4 @@ const TestInterfaceClient: React.FC = () => {
 };
 
 export default TestInterfaceClient;
+
