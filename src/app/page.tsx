@@ -8,10 +8,10 @@ import ImageSlideshow from "@/components/app/ImageSlideshow"; // Import the new 
 
 export default function HomePage() {
   const slideshowImages = [
-    { src: "https://placehold.co/1200x675.png?text=ExamPrep+Feature+1", alt: "ExamPrep Feature 1: AI Analysis", dataAiHint: "AI analysis exam" },
-    { src: "https://placehold.co/1200x675.png?text=ExamPrep+Feature+2", alt: "ExamPrep Feature 2: Interactive Test", dataAiHint: "interactive test interface" },
-    { src: "https://placehold.co/1200x675.png?text=ExamPrep+Feature+3", alt: "ExamPrep Feature 3: Detailed Results", dataAiHint: "exam results report" },
-    { src: "https://placehold.co/1200x675.png?text=ExamPrep+Feature+4", alt: "ExamPrep Feature 4: Easy PDF Upload", dataAiHint: "pdf upload process" },
+    { src: "/slideshow/slide_pdf_upload.png", alt: "ExamPrep Feature: Easy PDF Upload", dataAiHint: "pdf upload" },
+    { src: "/slideshow/slide_ai_analysis.png", alt: "ExamPrep Feature: AI-Powered Analysis", dataAiHint: "ai analysis" },
+    { src: "/slideshow/slide_interactive_test.png", alt: "ExamPrep Feature: Interactive Test Interface", dataAiHint: "interactive test" },
+    { src: "/slideshow/slide_detailed_results.png", alt: "ExamPrep Feature: Detailed Results & Insights", dataAiHint: "exam results" },
   ];
 
   return (
