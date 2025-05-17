@@ -8,10 +8,10 @@ import ImageSlideshow from "@/components/app/ImageSlideshow"; // Import the new 
 
 export default function HomePage() {
   const slideshowImages = [
-    { src: "/slideshow/slide_pdf_upload.png", alt: "ExamPrep Feature: Easy PDF Upload", dataAiHint: "pdf upload" },
-    { src: "/slideshow/slide_ai_analysis.png", alt: "ExamPrep Feature: AI-Powered Analysis", dataAiHint: "ai analysis" },
-    { src: "/slideshow/slide_interactive_test.png", alt: "ExamPrep Feature: Interactive Test Interface", dataAiHint: "interactive test" },
-    { src: "/slideshow/slide_detailed_results.png", alt: "ExamPrep Feature: Detailed Results & Insights", dataAiHint: "exam results" },
+    { src: "/slideshow/image1.png", alt: "ExamPrep Feature Demonstration 1", dataAiHint: "app feature" },
+    { src: "/slideshow/image2.png", alt: "ExamPrep Feature Demonstration 2", dataAiHint: "user interface" },
+    { src: "/slideshow/image3.png", alt: "ExamPrep Feature Demonstration 3", dataAiHint: "test preparation" },
+    { src: "/slideshow/image4.png", alt: "ExamPrep Feature Demonstration 4", dataAiHint: "exam practice" },
   ];
 
   return (
