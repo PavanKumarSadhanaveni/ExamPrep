@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { useExamContext } from "@/hooks/useExamContext";
 import type { Question } from "@/types/exam";
-import { Bot, MessageSquareQuestion, Loader2 } from "lucide-react"; // Added Bot icon
+import { Bot, Loader2 } from "lucide-react"; // Removed MessageSquareQuestion as Bot is used
 import { ScrollArea } from '../ui/scroll-area';
 
 interface HintBotProps {
@@ -15,11 +15,11 @@ interface HintBotProps {
 }
 
 const HintBot: React.FC<HintBotProps> = ({ currentQuestion, isExamFinished }) => {
-  const { 
-    examData, 
-    requestHint, 
-    activeQuestionHints, 
-    hintRequestLoading 
+  const {
+    examData,
+    requestHint,
+    activeQuestionHints,
+    hintRequestLoading
   } = useExamContext();
   const { isPaused } = examData;
 
@@ -27,17 +27,18 @@ const HintBot: React.FC<HintBotProps> = ({ currentQuestion, isExamFinished }) =>
 
   // Reset hints display when question changes or popover closes
   useEffect(() => {
-    if (!isOpen && activeQuestionHints.length > 0) {
+    // Check if activeQuestionHints is an array before accessing its length
+    if (!isOpen && activeQuestionHints && activeQuestionHints.length > 0) {
       // Potentially clear activeQuestionHints here if they should only live while popover is open
       // For now, they persist until next question to allow re-opening popover to see them.
     }
-  }, [isOpen, currentQuestion, activeQuestionHints.length]);
+  }, [isOpen, currentQuestion, activeQuestionHints]); // Depend on activeQuestionHints reference
 
   if (!currentQuestion || isExamFinished || isPaused) {
     // Don't render the bot if no current question, exam is finished, or paused.
     // The parent component (TestInterfaceClient) also has similar logic for hiding it,
     // but this ensures the HintBot itself doesn't try to render its trigger.
-    return null; 
+    return null;
   }
 
   const userAnswer = examData.userAnswers.find(ans => ans.questionId === currentQuestion.id);
@@ -55,9 +56,9 @@ const HintBot: React.FC<HintBotProps> = ({ currentQuestion, isExamFinished }) =>
       <PopoverTrigger asChild>
         <Button
           id="hint-bot-trigger"
-          variant="outline" // Changed variant for better fitting with other footer buttons
+          variant="outline"
           size="icon"
-          className="rounded-full h-10 w-10" // Standard icon size, made circular
+          className="rounded-full h-10 w-10 flex items-center justify-center z-[60]" // Ensured flex centering and z-index
           disabled={!currentQuestion || isExamFinished || isPaused}
           aria-label="Get a hint from AI Bot"
           title={`Hints used: ${hintsUsedCount}/3`}
@@ -65,9 +66,9 @@ const HintBot: React.FC<HintBotProps> = ({ currentQuestion, isExamFinished }) =>
           <Bot className="h-5 w-5" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent 
-        side="top" 
-        align="end" 
+      <PopoverContent
+        side="top"
+        align="end"
         className="w-80 shadow-xl rounded-lg p-0" // Removed default padding to control it fully
         onOpenAutoFocus={(e) => e.preventDefault()} // Prevent focus trap on open
       >
@@ -78,10 +79,10 @@ const HintBot: React.FC<HintBotProps> = ({ currentQuestion, isExamFinished }) =>
           </div>
 
           <ScrollArea className="h-auto max-h-[200px] p-4 text-sm space-y-2">
-            {activeQuestionHints.length === 0 && hintsRemaining > 0 && !hintRequestLoading && (
+            {activeQuestionHints && activeQuestionHints.length === 0 && hintsRemaining > 0 && !hintRequestLoading && (
               <p className="text-muted-foreground italic">Click "Get Hint" to receive your first clue.</p>
             )}
-            {activeQuestionHints.map((hint, index) => (
+            {activeQuestionHints && activeQuestionHints.map((hint, index) => (
               <div key={index} className="p-2 bg-accent/50 rounded-md text-accent-foreground">
                 <strong className="text-xs block text-muted-foreground">Hint {index + 1}:</strong>
                 {hint}
@@ -89,7 +90,7 @@ const HintBot: React.FC<HintBotProps> = ({ currentQuestion, isExamFinished }) =>
             ))}
             {hintRequestLoading && <div className="flex items-center justify-center p-2"><Loader2 className="h-5 w-5 animate-spin text-primary"/></div>}
           </ScrollArea>
-          
+
           <div className="p-3 border-t mt-auto">
             {hintsRemaining > 0 ? (
               <Button onClick={handleGetHint} disabled={hintRequestLoading} className="w-full" size="sm">
