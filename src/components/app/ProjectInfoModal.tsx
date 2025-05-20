@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { HelpCircle, Briefcase, GraduationCap, Brain, Code, Award, UserCircle } from "lucide-react";
+import { HelpCircle, Briefcase, GraduationCap, Brain, Code, Award, UserCircle, Phone, Mail, Linkedin, MapPin } from "lucide-react";
 
 const ProjectInfoModal: React.FC = () => {
   return (
@@ -304,6 +304,19 @@ const ProjectInfoModal: React.FC = () => {
               <h2 className="text-xl font-semibold mb-4 text-primary flex items-center">
                 <UserCircle className="mr-2 h-6 w-6" /> Developer Information
               </h2>
+
+              <div className="text-center mb-8 p-4 bg-primary/5 dark:bg-primary/10 rounded-lg shadow">
+                <h1 className="text-3xl font-bold text-primary">Pavan Kumar Sadhanaveni</h1>
+                <p className="text-md text-foreground font-medium">Entry Level Graduate | Software Developer</p>
+                <div className="mt-3 text-xs text-muted-foreground flex flex-wrap justify-center items-center gap-x-4 gap-y-1">
+                  <span className="flex items-center"><Phone className="inline h-3.5 w-3.5 mr-1"/>+91 7075071288</span>
+                  <span className="flex items-center"><Mail className="inline h-3.5 w-3.5 mr-1"/>pavankumarsadhanaveni@gmail.com</span>
+                  <a href="https://www.linkedin.com/in/pavankumarsadhanaveni/" target="_blank" rel="noopener noreferrer" className="flex items-center hover:text-primary hover:underline">
+                    <Linkedin className="inline h-3.5 w-3.5 mr-1"/>LinkedIn/in/PavanKumarSadhanaveni
+                  </a>
+                  <span className="flex items-center"><MapPin className="inline h-3.5 w-3.5 mr-1"/>Hyderabad</span>
+                </div>
+              </div>
               
               <div className="mb-6 p-4 bg-secondary/30 rounded-lg">
                 <h3 className="text-lg font-semibold mb-1 text-foreground">Summary</h3>
@@ -337,6 +350,7 @@ const ProjectInfoModal: React.FC = () => {
                     <li><strong>Version Control:</strong> GitHub</li>
                     <li><strong>API Testing Tools:</strong> Postman</li>
                     <li><strong>Methodologies:</strong> Agile</li>
+                    <li><strong>This Project (ExamPrep):</strong> Next.js (App Router), React, TypeScript, Genkit (Google Gemini AI), Tailwind CSS, ShadCN UI, Server Actions, pdfjs-dist, tesseract.js</li>
                   </ul>
                 </div>
               </div>
@@ -361,10 +375,10 @@ const ProjectInfoModal: React.FC = () => {
                   <h4 className="font-medium">Secure and Ethical Monitoring System for Keystroke and User Behavior</h4>
                   <p className="text-xs text-muted-foreground">Dec 2024 – Jan 2024</p>
                   <ul className="list-disc list-inside space-y-1 text-sm mt-1 pl-4">
-                    <li>Implemented keystroke logging with active window tracking, achieving accuracy in capturing contextual user input.</li>
-                    <li>Monitored clipboard activity, detecting changes with a 15% improvement in data capture efficiency.</li>
-                    <li>Configured periodic screenshot capture, optimizing data visibility while maintaining system resource efficiency.</li>
-                    <li>Automated email reporting, reducing manual efforts by 30% and ensuring consistent delivery.</li>
+                    <li>Implemented keystroke logging with active window tracking, achieving accuracy in capturing contextual user input and timestamped logs.</li>
+                    <li>Monitored clipboard activity, detecting and recording changes with a 15% improvement in data capture efficiency through real-time updates.</li>
+                    <li>Configured periodic screenshot capture triggered by specific events, optimizing data visibility while maintaining system resource efficiency.</li>
+                    <li>Automated email reporting for keylogging data and screenshots, reducing manual reporting efforts by 30% and ensuring consistent periodic delivery.</li>
                   </ul>
                 </div>
                 <div>
@@ -403,3 +417,4 @@ const ProjectInfoModal: React.FC = () => {
 
 export default ProjectInfoModal;
 
+    
