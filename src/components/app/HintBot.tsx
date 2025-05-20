@@ -58,18 +58,19 @@ const HintBot: React.FC<HintBotProps> = ({ currentQuestion, isExamFinished }) =>
     setCooldownTimeLeft(COOLDOWN_PERIOD_MS);
   };
 
-  if (!currentQuestion || isExamFinished || isPaused) {
-    return null;
-  }
-
-  const handleGetHint = useCallback(async (level: number) => {
+  const handleGetHint = useCallback(async () => {
     if (currentQuestion && hintsTakenForCurrentQuestion.length < 3 && !hintRequestLoading && !cooldownActive) {
-      const success = await requestHint(currentQuestion.id, currentQuestion.questionText, currentQuestion.options, level);
+      const currentHintLevel = hintsTakenForCurrentQuestion.length + 1;
+      const success = await requestHint(currentQuestion.id, currentQuestion.questionText, currentQuestion.options, currentHintLevel);
       if (success) {
         startCooldown();
       }
     }
   }, [currentQuestion, hintsTakenForCurrentQuestion.length, hintRequestLoading, cooldownActive, requestHint, startCooldown]);
+
+  if (!currentQuestion || isExamFinished || isPaused) {
+    return null;
+  }
 
   const getHintButtonConfig = () => {
     const hintsTakenCount = hintsTakenForCurrentQuestion.length;
@@ -90,9 +91,9 @@ const HintBot: React.FC<HintBotProps> = ({ currentQuestion, isExamFinished }) =>
       <PopoverTrigger asChild>
         <Button
           id="hint-bot-trigger"
-          variant="outline"
+          variant="default" // Changed to default for primary color
           size="icon"
-          className="rounded-full h-10 w-10 flex items-center justify-center z-[60]"
+          className="rounded-full h-10 w-10 flex items-center justify-center shadow-md hover:shadow-lg transition-shadow z-[60]"
           disabled={!currentQuestion || isExamFinished || isPaused}
           aria-label="Get a hint from AI Bot"
           title={`Hints taken: ${hintsTakenForCurrentQuestion.length}/3`}
@@ -103,17 +104,20 @@ const HintBot: React.FC<HintBotProps> = ({ currentQuestion, isExamFinished }) =>
       <PopoverContent
         side="top"
         align="end"
-        className="w-80 shadow-xl rounded-lg p-0"
-        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="w-80 shadow-xl rounded-lg p-0" // p-0 to control padding internally
+        onOpenAutoFocus={(e) => e.preventDefault()} // Prevents focus stealing
       >
         <div className="flex flex-col">
-          <div className="p-4 border-b bg-secondary/50 rounded-t-lg">
-            <h4 className="font-medium text-sm text-foreground">AI Hint Bot</h4>
-            <p className="text-xs text-muted-foreground">Need a nudge for this question?</p>
+          <div className="p-3 border-b bg-secondary/50 rounded-t-lg">
+            <h4 className="font-medium text-sm flex items-center gap-2 text-foreground">
+              <Bot className="h-4 w-4 text-primary" />
+              AI Hint Bot
+            </h4>
+            <p className="text-xs text-muted-foreground mt-0.5">Need a nudge for this question?</p>
           </div>
 
           <ScrollArea className="h-auto max-h-60 p-4 text-sm space-y-3">
-            {activeQuestionHints && activeQuestionHints.map((hint, index) => (
+            {activeQuestionHints && activeQuestionHints.length > 0 && activeQuestionHints.map((hint, index) => (
               <div key={index} className="p-2.5 bg-accent/60 rounded-md text-accent-foreground shadow-sm">
                 <strong className="text-xs block text-muted-foreground mb-0.5">Hint {index + 1}:</strong>
                 {hint}
@@ -124,7 +128,7 @@ const HintBot: React.FC<HintBotProps> = ({ currentQuestion, isExamFinished }) =>
                 <Loader2 className="h-5 w-5 animate-spin text-primary"/>
               </div>
             )}
-             {activeQuestionHints && activeQuestionHints.length === 0 && !hintButtonConfig && !hintRequestLoading && (
+            {(!activeQuestionHints || activeQuestionHints.length === 0) && !hintButtonConfig && !hintRequestLoading && (
                 <p className="text-muted-foreground italic text-center py-2">No hints requested yet.</p>
             )}
             {activeQuestionHints && activeQuestionHints.length > 0 && !hintRequestLoading && (
@@ -142,10 +146,10 @@ const HintBot: React.FC<HintBotProps> = ({ currentQuestion, isExamFinished }) =>
             )}
           </ScrollArea>
 
-          <div className="p-3 border-t mt-auto bg-background rounded-b-lg">
+          <div className="p-3 border-t bg-background rounded-b-lg">
             {hintButtonConfig ? (
               <Button
-                onClick={() => handleGetHint(hintButtonConfig.level)}
+                onClick={handleGetHint}
                 disabled={hintRequestLoading || cooldownActive || hintsTakenForCurrentQuestion.length >= 3}
                 className="w-full"
                 size="sm"
