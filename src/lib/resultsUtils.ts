@@ -19,118 +19,151 @@ function calculateQuestionScore(question: Question, userAnswer: UserAnswer | und
   if (userAnswer.isCorrect && userAnswer.hintsTaken && userAnswer.hintsTaken.length > 0) {
     let totalPenaltyPercentage = 0;
     userAnswer.hintsTaken.forEach(hint => {
-      if (hint.level === 1) totalPenaltyPercentage += HINT_PENALTIES[1];
-      else if (hint.level === 2) totalPenaltyPercentage += HINT_PENALTIES[2];
-      else if (hint.level === 3) totalPenaltyPercentage += HINT_PENALTIES[3];
+      // Ensure hint.level is treated as a key of HINT_PENALTIES
+      const levelKey = hint.level as keyof typeof HINT_PENALTIES;
+      if (HINT_PENALTIES[levelKey]) {
+        totalPenaltyPercentage += HINT_PENALTIES[levelKey];
+      }
     });
     // Ensure penalty doesn't exceed 100% of the question's marks
     const penaltyAmount = Math.min(marksPerQuestion, marksPerQuestion * totalPenaltyPercentage);
     score -= penaltyAmount;
   }
   
-  // Ensure score doesn't go below zero if incorrect and hints were taken (though hints usually apply to correct answers)
+  // Ensure score doesn't go below zero
   return Math.max(0, score); 
 }
 
 
 export function calculateResults(examData: ExamData): OverallResults {
-  const { questions, userAnswers, startTime, endTime, examInfo } = examData;
+  const { questions: loadedQuestions, userAnswers, startTime, endTime, examInfo } = examData;
 
-  if (!questions || questions.length === 0) {
+  if (!examInfo || !examInfo.subjects || examInfo.subjects.length === 0) {
+    // If no exam structure is defined, return basic empty results or based on loaded questions if any
+    const fallbackTotalQuestions = loadedQuestions.length;
+    let fallbackCorrect = 0;
+    let fallbackWrong = 0;
+    let fallbackSkipped = 0;
+    let fallbackRawScore = 0;
+    const fallbackMaxScore = fallbackTotalQuestions * 1; // Assume 1 mark per question
+
+    loadedQuestions.forEach(q => {
+        const ua = userAnswers.find(ans => ans.questionId === q.id);
+        if (!ua || ua.selectedOption === null) fallbackSkipped++;
+        else if (ua.isCorrect) fallbackCorrect++;
+        else fallbackWrong++;
+        fallbackRawScore += calculateQuestionScore(q, ua, 1);
+    });
+    
     return {
-      totalQuestions: 0,
-      correctAnswers: 0,
-      wrongAnswers: 0,
-      skippedAnswers: 0,
-      finalScore: 0,
-      totalTimeTaken: 0,
-      sectionSummaries: [],
-      overallRawScore: 0,
-      overallMaxScore: 0,
+      totalQuestions: fallbackTotalQuestions,
+      correctAnswers: fallbackCorrect,
+      wrongAnswers: fallbackWrong,
+      skippedAnswers: fallbackSkipped,
+      finalScore: fallbackMaxScore > 0 ? (fallbackRawScore / fallbackMaxScore) * 100 : 0,
+      totalTimeTaken: startTime && endTime ? Math.floor((endTime - startTime) / 1000) : 0,
+      sectionSummaries: [], // No defined sections to summarize
+      overallRawScore: fallbackRawScore,
+      overallMaxScore: fallbackMaxScore,
     };
   }
 
+  let overallAchievedMarks = 0;
+  let overallMaximumMarks = 0;
   let totalCorrectAnswersCount = 0;
   let totalWrongAnswersCount = 0;
   let totalSkippedAnswersCount = 0;
-  let overallAchievedMarks = 0;
-  let overallMaximumMarks = 0;
+  let overallExpectedQuestions = 0;
 
-  const sectionMap: { [key: string]: { 
-    name: string, 
-    totalQuestions: number, 
-    correctAnswers: number, 
-    wrongAnswers: number, 
-    skippedAnswers: number, 
-    achievedMarks: number,
-    maximumMarks: number 
-  } } = {};
+  const sectionSummaries: SectionSummary[] = [];
 
-  // Determine default marks per question if not specified at subject/section level
-  const defaultMarksPerQuestion = examInfo?.overallTotalMarks && examInfo.overallNumberOfQuestions && examInfo.overallNumberOfQuestions > 0
+  const defaultMarksPerQuestionFromExam = examInfo.overallTotalMarks && examInfo.overallNumberOfQuestions && examInfo.overallNumberOfQuestions > 0
     ? examInfo.overallTotalMarks / examInfo.overallNumberOfQuestions
     : 1;
 
-  questions.forEach(q => {
-    const sectionInfo = examInfo?.subjects
-        .flatMap(subj => subj.subjectSections.map(sec => ({...sec, subjectName: subj.subjectName})))
-        .find(secDetail => {
-            const flatSectionId = examInfo.sections?.find(s => s.includes(secDetail.subjectName) && s.includes(secDetail.sectionNameOrType)) || `${secDetail.subjectName} - ${secDetail.sectionNameOrType}`;
-            return flatSectionId === q.section;
-        });
+  examInfo.subjects.forEach(subject => {
+    subject.subjectSections.forEach(sectionDetail => {
+      // Determine the unique flat section identifier (e.g., "Physics - Section A")
+      // This needs to be consistent with how question.section is stored.
+      const sectionPrefix = (examInfo.subjects.length === 1 && (subject.subjectName.toLowerCase().includes("general") || subject.subjectName.toLowerCase().includes("main"))) ? "" : `${subject.subjectName} - `;
+      const flatSectionIdentifier = `${sectionPrefix}${sectionDetail.sectionNameOrType}`;
+      
+      const expectedQuestionsInSection = sectionDetail.numberOfQuestions || 0;
+      overallExpectedQuestions += expectedQuestionsInSection;
 
-    const marksPerThisQuestion = sectionInfo?.marksPerQuestion || defaultMarksPerQuestion;
-    
-    if (!sectionMap[q.section]) {
-      sectionMap[q.section] = { 
-        name: q.section, 
-        totalQuestions: 0, 
-        correctAnswers: 0, 
-        wrongAnswers: 0, 
-        skippedAnswers: 0,
-        achievedMarks: 0,
-        maximumMarks: 0
-      };
-    }
-    sectionMap[q.section].totalQuestions++;
-    sectionMap[q.section].maximumMarks += marksPerThisQuestion;
-    overallMaximumMarks += marksPerThisQuestion;
+      const marksPerQuestionInSection = sectionDetail.marksPerQuestion || subject.marksPerQuestion || defaultMarksPerQuestionFromExam;
+      const sectionMaximumMarks = (sectionDetail.totalMarksForSection !== undefined && sectionDetail.totalMarksForSection !== null)
+        ? sectionDetail.totalMarksForSection
+        : expectedQuestionsInSection * marksPerQuestionInSection;
+      
+      overallMaximumMarks += sectionMaximumMarks;
 
-    const userAnswer = userAnswers.find(ans => ans.questionId === q.id);
-    const questionScore = calculateQuestionScore(q, userAnswer, marksPerThisQuestion);
-    sectionMap[q.section].achievedMarks += questionScore;
-    overallAchievedMarks += questionScore;
+      let sectionAchievedMarks = 0;
+      let sectionCorrect = 0;
+      let sectionWrong = 0;
+      let sectionAttemptedCount = 0; // Number of questions in this section that were loaded AND answered/skipped by user
 
-    if (!userAnswer || userAnswer.selectedOption === null) {
-      totalSkippedAnswersCount++;
-      sectionMap[q.section].skippedAnswers++;
-    } else if (userAnswer.isCorrect) {
-      totalCorrectAnswersCount++;
-      sectionMap[q.section].correctAnswers++;
-    } else {
-      totalWrongAnswersCount++;
-      sectionMap[q.section].wrongAnswers++;
-    }
+      // Filter loaded questions that belong to this specific flatSectionIdentifier
+      const questionsInThisSection = loadedQuestions.filter(q => q.section === flatSectionIdentifier);
+
+      questionsInThisSection.forEach(q => {
+        const userAnswer = userAnswers.find(ans => ans.questionId === q.id);
+        sectionAchievedMarks += calculateQuestionScore(q, userAnswer, marksPerQuestionInSection);
+
+        if (userAnswer && userAnswer.selectedOption !== null) {
+          sectionAttemptedCount++;
+          if (userAnswer.isCorrect) {
+            sectionCorrect++;
+          } else {
+            sectionWrong++;
+          }
+        } else {
+          // This question was loaded but explicitly skipped by user or timed out before answering
+          // We count it as attempted (for the purpose of calculating the section's skipped count from expected)
+          sectionAttemptedCount++; 
+        }
+      });
+      
+      // Questions defined in examInfo for this section but not found in loadedQuestions NOR in userAnswers for this section
+      // OR questions that were loaded but explicitly skipped.
+      const sectionSkipped = expectedQuestionsInSection - sectionCorrect - sectionWrong;
+
+
+      overallAchievedMarks += sectionAchievedMarks;
+      totalCorrectAnswersCount += sectionCorrect;
+      totalWrongAnswersCount += sectionWrong;
+      // totalSkippedAnswersCount is calculated at the end based on overall expected vs overall correct+wrong
+
+      sectionSummaries.push({
+        name: flatSectionIdentifier, // Use the unique flat identifier
+        totalQuestions: expectedQuestionsInSection,
+        correctAnswers: sectionCorrect,
+        wrongAnswers: sectionWrong,
+        skippedAnswers: sectionSkipped,
+        score: sectionMaximumMarks > 0 ? Math.max(0, (sectionAchievedMarks / sectionMaximumMarks) * 100) : 0,
+        rawScore: sectionAchievedMarks,
+        maxScore: sectionMaximumMarks,
+      });
+    });
   });
 
-  const sectionSummaries: SectionSummary[] = Object.values(sectionMap).map(sec => {
-    return {
-      name: sec.name,
-      totalQuestions: sec.totalQuestions,
-      correctAnswers: sec.correctAnswers,
-      wrongAnswers: sec.wrongAnswers,
-      skippedAnswers: sec.skippedAnswers,
-      score: sec.maximumMarks > 0 ? Math.max(0, (sec.achievedMarks / sec.maximumMarks) * 100) : 0,
-      rawScore: sec.achievedMarks,
-      maxScore: sec.maximumMarks,
-    };
-  });
-  
+  // Recalculate overall skipped count based on total expected questions
+  totalSkippedAnswersCount = overallExpectedQuestions - totalCorrectAnswersCount - totalWrongAnswersCount;
+  if (overallMaximumMarks === 0 && overallExpectedQuestions > 0) { // If max marks was 0 but questions existed, assume 1 mark per question for percentage
+      overallMaximumMarks = overallExpectedQuestions;
+  }
+
+
   const finalScorePercentage = overallMaximumMarks > 0 ? (overallAchievedMarks / overallMaximumMarks) * 100 : 0;
   const totalTimeTaken = startTime && endTime ? Math.floor((endTime - startTime) / 1000) : 0;
 
+  // If overallExpectedQuestions is 0 but examInfo was present, it means AI failed to get question counts
+  // In this rare case, we might fall back to loadedQuestions.length for total, but it's better if AI is robust.
+  const finalTotalQuestions = examInfo.overallNumberOfQuestions || overallExpectedQuestions || loadedQuestions.length;
+
+
   return {
-    totalQuestions: questions.length,
+    totalQuestions: finalTotalQuestions,
     correctAnswers: totalCorrectAnswersCount,
     wrongAnswers: totalWrongAnswersCount,
     skippedAnswers: totalSkippedAnswersCount,
