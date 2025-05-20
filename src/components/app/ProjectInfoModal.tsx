@@ -1,10 +1,10 @@
 
 "use client";
 
-import React from 'react';
+import React from 'react'; // Full import for React
 import {
   Dialog,
-  DialogClose, // Import DialogClose
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Briefcase, GraduationCap, Brain, Code, Award, UserCircle } from "lucide-react";
 
 const ProjectInfoModal: React.FC = () => {
   return (
@@ -299,6 +299,96 @@ const ProjectInfoModal: React.FC = () => {
               </code></pre>
               <p className="text-xs text-muted-foreground mt-1"> (This can be rendered using a Mermaid visualizer.)</p>
             </section>
+
+            <section className="pt-6 border-t mt-6">
+              <h2 className="text-xl font-semibold mb-4 text-primary flex items-center">
+                <UserCircle className="mr-2 h-6 w-6" /> Developer Information
+              </h2>
+              
+              <div className="mb-6 p-4 bg-secondary/30 rounded-lg">
+                <h3 className="text-lg font-semibold mb-1 text-foreground">Summary</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Aspiring Software Developer seeking an entry-level role to apply skills in Java, SQL and web technologies like HTML, CSS, and JavaScript. Aiming to contribute to efficient software solutions in an active team environment and ensure solutions meet business needs.
+                </p>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="p-4 bg-card border rounded-lg shadow-sm">
+                  <h3 className="text-lg font-semibold mb-2 text-foreground flex items-center"><GraduationCap className="mr-2 h-5 w-5 text-primary" />Education</h3>
+                  <div className="mb-3">
+                    <h4 className="font-medium">Bachelor of Technology in Computer Science and Engineering/Cybersecurity</h4>
+                    <p className="text-xs text-muted-foreground">CVR College of Engineering | Dec 2021 – Apr 2025</p>
+                    <p className="text-xs">CGPA – 7.65</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium">Board of Intermediate Education</h4>
+                    <p className="text-xs text-muted-foreground">Narayana Junior College | Jun 2019 – Apr 2021</p>
+                    <p className="text-xs">Percentage – 88%</p>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-card border rounded-lg shadow-sm">
+                  <h3 className="text-lg font-semibold mb-2 text-foreground flex items-center"><Brain className="mr-2 h-5 w-5 text-primary" />Technical Skills</h3>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    <li><strong>Programming Languages:</strong> Java, SQL, JavaScript</li>
+                    <li><strong>Web Technologies:</strong> HTML, CSS, Firebase</li>
+                    <li><strong>Project Management:</strong> Jira</li>
+                    <li><strong>Development Environments & IDEs:</strong> Visual Studio</li>
+                    <li><strong>Version Control:</strong> GitHub</li>
+                    <li><strong>API Testing Tools:</strong> Postman</li>
+                    <li><strong>Methodologies:</strong> Agile</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mt-6 p-4 bg-card border rounded-lg shadow-sm">
+                <h3 className="text-lg font-semibold mb-2 text-foreground flex items-center"><Briefcase className="mr-2 h-5 w-5 text-primary" />Internships</h3>
+                <div className="mb-3">
+                  <h4 className="font-medium">Cybersecurity Intern</h4>
+                  <p className="text-xs text-muted-foreground">Palo Alto Networks | Jul 2024 – Sep 2024</p>
+                  <ul className="list-disc list-inside space-y-1 text-sm mt-1 pl-4">
+                    <li>Enhanced security knowledge by completing specialized training on basic networking and security features, improving overall understanding of cybersecurity principles.</li>
+                    <li>Applied security measures based on AICTE-program modules, ensuring system integrity and reducing vulnerabilities by 25%.</li>
+                    <li>Collaborated with teams to assess and resolve network security risks, contributing to a 15% increase in system uptime.</li>
+                    <li>Developed practical cybersecurity skills using Palo Alto Networks tools, gaining proficiency in firewall configurations and threat analysis.</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mt-6 p-4 bg-card border rounded-lg shadow-sm">
+                <h3 className="text-lg font-semibold mb-2 text-foreground flex items-center"><Code className="mr-2 h-5 w-5 text-primary" />Projects</h3>
+                <div className="mb-4">
+                  <h4 className="font-medium">Secure and Ethical Monitoring System for Keystroke and User Behavior</h4>
+                  <p className="text-xs text-muted-foreground">Dec 2024 – Jan 2024</p>
+                  <ul className="list-disc list-inside space-y-1 text-sm mt-1 pl-4">
+                    <li>Implemented keystroke logging with active window tracking, achieving accuracy in capturing contextual user input.</li>
+                    <li>Monitored clipboard activity, detecting changes with a 15% improvement in data capture efficiency.</li>
+                    <li>Configured periodic screenshot capture, optimizing data visibility while maintaining system resource efficiency.</li>
+                    <li>Automated email reporting, reducing manual efforts by 30% and ensuring consistent delivery.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-medium">Debug Mental Health</h4>
+                  <p className="text-xs text-muted-foreground">Feb 2024 – Mar 2024</p>
+                  <ul className="list-disc list-inside space-y-1 text-sm mt-1 pl-4">
+                    <li>Established a mental health platform using React, JavaScript, HTML, CSS, and Firebase, achieving increased user engagement during CodeFury 6.0 Hackathon.</li>
+                    <li>Integrated external APIs (Quotable, Spotify), streamlining content delivery and reducing API call latency by 15%.</li>
+                    <li>Engineered user authentication and journal creation features, enhancing secure registrations and user interaction.</li>
+                    <li>Deployed calming games and curated resources, elevating relaxation activity accessibility by 25%.</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mt-6 p-4 bg-card border rounded-lg shadow-sm">
+                <h3 className="text-lg font-semibold mb-2 text-foreground flex items-center"><Award className="mr-2 h-5 w-5 text-primary" />Certifications & Trainings</h3>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li>Certified in IBM Data Science – Coursera.</li>
+                  <li>Gained expertise in Google Data Analytics – Coursera.</li>
+                  <li>Attained certification in Google Cybersecurity – Coursera.</li>
+                </ul>
+              </div>
+            </section>
+
           </div>
         </ScrollArea>
         <DialogFooter>
@@ -313,4 +403,3 @@ const ProjectInfoModal: React.FC = () => {
 
 export default ProjectInfoModal;
 
-    
