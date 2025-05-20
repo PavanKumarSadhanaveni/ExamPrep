@@ -113,7 +113,7 @@ const ProjectInfoModal: React.FC = () => {
 │   │   ├── image1.png
 │   │   ├── image2.png
 │   │   ├── image3.png
-│   │   └── image4.png
+│   │   ├── image4.png
 │   └── favicon.svg
 └── types/`}
               </code></pre>
@@ -372,6 +372,18 @@ const ProjectInfoModal: React.FC = () => {
               <div className="mt-6 p-4 bg-card border rounded-lg shadow-sm">
                 <h3 className="text-lg font-semibold mb-2 text-foreground flex items-center"><Code className="mr-2 h-5 w-5 text-primary" />Projects</h3>
                 <div className="mb-4">
+                  <h4 className="font-medium">ExamPrep: AI-Powered Exam Simulator (This Project)</h4>
+                  <p className="text-xs text-muted-foreground">Current Project</p>
+                  <ul className="list-disc list-inside space-y-1 text-sm mt-1 pl-4">
+                    <li>Developed a Next.js application to transform PDF exam papers into interactive practice tests using AI.</li>
+                    <li>Integrated Genkit with Google Gemini AI for intelligent extraction of exam metadata (subjects, sections, timing, marks) and individual questions from PDF text content.</li>
+                    <li>Implemented client-side PDF parsing using `pdfjs-dist` with a `tesseract.js` OCR fallback for image-based or low-text PDFs.</li>
+                    <li>Designed a dynamic test interface with section-wise question loading, a countdown timer, a smart pause feature, and an AI-powered hint system with progressive hints and score adjustments.</li>
+                    <li>Built a comprehensive results dashboard displaying overall performance and section-wise breakdowns, calculated based on marks.</li>
+                    <li>Utilized React Context API for global state management, ShadCN UI and Tailwind CSS for a responsive and modern user interface with dark mode support.</li>
+                  </ul>
+                </div>
+                <div className="mb-4"> {/* Added mb-4 for spacing */}
                   <h4 className="font-medium">Secure and Ethical Monitoring System for Keystroke and User Behavior</h4>
                   <p className="text-xs text-muted-foreground">Dec 2024 – Jan 2024</p>
                   <ul className="list-disc list-inside space-y-1 text-sm mt-1 pl-4">
