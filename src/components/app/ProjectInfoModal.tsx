@@ -1,9 +1,10 @@
 
 "use client";
 
-import React from 'react'; // Changed from 'import type React from 'react';'
+import React from 'react';
 import {
   Dialog,
+  DialogClose, // Import DialogClose
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -32,36 +33,58 @@ const ProjectInfoModal: React.FC = () => {
         </DialogHeader>
         <ScrollArea className="flex-grow overflow-y-auto pr-6">
           <div className="space-y-6 py-4 text-sm">
+            
             <section>
               <h2 className="text-xl font-semibold mb-2 text-primary">1. Technology Stack Used</h2>
+              <h3 className="text-lg font-medium mt-1 mb-1">Frontend:</h3>
               <ul className="list-disc list-inside space-y-1 pl-4">
-                <li><strong>Frontend Framework:</strong> Next.js (with App Router)</li>
-                <li><strong>UI Library:</strong> React</li>
-                <li><strong>Language:</strong> TypeScript</li>
-                <li><strong>Styling:</strong> Tailwind CSS</li>
-                <li><strong>UI Components:</strong> ShadCN UI (Radix UI + Tailwind)</li>
-                <li><strong>AI Integration:</strong> Genkit (Google Gemini)
+                <li><strong>Next.js (App Router)</strong> – for routing + SSR magic</li>
+                <li><strong>React + TypeScript</strong> – strong types, smooth vibes</li>
+                <li><strong>Tailwind CSS</strong> – for that clean, fast UI drip</li>
+                <li><strong>ShadCN UI + Radix</strong> – reusable, accessible, bomb UI components</li>
+                <li><strong>Lucide Icons</strong> – aesthetic icons pack</li>
+                <li><strong>React Hook Form + Zod</strong> – crispy form handling with validation</li>
+              </ul>
+
+              <h3 className="text-lg font-medium mt-3 mb-1">AI / GenAI Integration:</h3>
+              <ul className="list-disc list-inside space-y-1 pl-4">
+                <li><strong>Genkit</strong> – the bridge to call Google Gemini models
                   <ul className="list-circle list-inside pl-6">
-                    <li>Google AI (via @genkit-ai/googleai)</li>
+                    <li>Uses <code>@genkit-ai/googleai</code></li>
                   </ul>
                 </li>
-                <li><strong>PDF Processing (Client-Side):</strong>
-                  <ul className="list-circle list-inside pl-6">
-                    <li><code>pdfjs-dist</code>: Primary text extraction.</li>
-                    <li><code>tesseract.js</code>: OCR fallback.</li>
-                  </ul>
-                </li>
-                <li><strong>State Management:</strong> React Context API (ExamContext)</li>
-                <li><strong>Form Handling:</strong> React Hook Form + Zod</li>
-                <li><strong>Utility Libraries:</strong> clsx, tailwind-merge, lucide-react, date-fns</li>
-                <li><strong>Development Environment:</strong> Firebase Studio</li>
+                <li><strong>LLM Magic:</strong> Extracts exam data + questions from PDF text using Gemini prompts</li>
+              </ul>
+
+              <h3 className="text-lg font-medium mt-3 mb-1">PDF Handling:</h3>
+              <ul className="list-disc list-inside space-y-1 pl-4">
+                <li><code>pdfjs-dist</code> – to read/extract text from PDFs</li>
+                <li><code>tesseract.js</code> – fallback OCR if text extraction is weak (image-based PDFs)</li>
+              </ul>
+
+              <h3 className="text-lg font-medium mt-3 mb-1">State Management:</h3>
+              <ul className="list-disc list-inside space-y-1 pl-4">
+                <li><strong>React Context API</strong> (<code>ExamContext</code>) – holds all exam state globally</li>
+              </ul>
+              
+              <h3 className="text-lg font-medium mt-3 mb-1">Utility Libraries:</h3>
+              <ul className="list-disc list-inside space-y-1 pl-4">
+                <li><code>clsx</code>, <code>tailwind-merge</code> – manage Tailwind class combos</li>
+                <li><code>date-fns</code> – little date helpers here and there</li>
+              </ul>
+
+              <h3 className="text-lg font-medium mt-3 mb-1">Backend (Server Stuff):</h3>
+               <ul className="list-disc list-inside space-y-1 pl-4">
+                <li><strong>Next.js Server Actions</strong> – for form handling, AI requests etc.</li>
+                <li><strong>Genkit AI Flows</strong> – AI prompt workflows to Gemini</li>
+                <li><strong>Firebase Studio</strong> – your dev env (and possibly backend in the future: auth, DB, hosting)</li>
               </ul>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold mb-2 text-primary">2. Module Structure</h2>
-              <pre className="bg-secondary/30 p-3 rounded-md overflow-x-auto"><code>
-src/
+              <pre className="bg-secondary/30 p-3 rounded-md overflow-x-auto text-xs"><code>
+{`src/
 ├── app/
 │   ├── (exam-routes)/
 │   │   ├── details/
@@ -70,6 +93,7 @@ src/
 │   │   ├── results/
 │   │   └── test/
 │   ├── suggestions/
+│   ├── upload/
 │   ├── globals.css
 │   ├── layout.tsx
 │   └── page.tsx
@@ -84,7 +108,14 @@ src/
 ├── contexts/
 ├── hooks/
 ├── lib/
-└── types/
+├── public/
+│   ├── slideshow/
+│   │   ├── image1.png
+│   │   ├── image2.png
+│   │   ├── image3.png
+│   │   └── image4.png
+│   └── favicon.svg
+└── types/`}
               </code></pre>
             </section>
 
@@ -92,41 +123,87 @@ src/
               <h2 className="text-xl font-semibold mb-2 text-primary">3. System Architecture</h2>
               <h3 className="text-lg font-medium mt-1 mb-1">Client-Side (Browser):</h3>
               <ul className="list-disc list-inside space-y-1 pl-4">
-                <li>UI Rendering: React, ShadCN components.</li>
-                <li>State Management: ExamContext, useState/useEffect.</li>
-                <li>PDF Processing: User uploads PDF. `pdfUtils.ts` uses `pdfjs-dist` (primary) and `tesseract.js` (OCR fallback).</li>
-                <li>Interaction: Calls Server Actions for AI tasks. Stores progress in localStorage.</li>
+                <li>Handles UI rendering using React and ShadCN components.</li>
+                <li>Manages client-side state via ExamContext and useState/useEffect.</li>
+                <li><strong>PDF Processing:</strong>
+                  <ul className="list-circle list-inside pl-6">
+                    <li>User uploads a PDF file.</li>
+                    <li><code>pdfUtils.ts</code> uses <code>pdfjs-dist</code> to attempt direct text extraction.</li>
+                    <li>If direct extraction yields insufficient text, <code>tesseract.js</code> is used as an OCR fallback.</li>
+                  </ul>
+                </li>
+                <li>Interacts with Server Actions for AI processing.</li>
+                <li>Stores exam progress in <code>localStorage</code> for persistence.</li>
               </ul>
               <h3 className="text-lg font-medium mt-3 mb-1">Server-Side (Next.js Server / Server Actions):</h3>
               <ul className="list-disc list-inside space-y-1 pl-4">
-                <li>Server Actions (`actions/examActions.ts`): Handle AI processing requests from client. Call Genkit flows.</li>
-                <li>Genkit AI Flows (`ai/flows/`): Server-side logic using Genkit and Google Gemini to extract exam metadata and questions from text.</li>
-                <li>Next.js: Routing, static asset serving, SSR initial shells.</li>
+                <li><strong>Server Actions (<code>actions/examActions.ts</code>):</strong> TypeScript functions run on the server, invoked from client components.
+                  <ul className="list-circle list-inside pl-6">
+                    <li>Receive PDF text content from the client.</li>
+                    <li>Call Genkit AI flows.</li>
+                  </ul>
+                </li>
+                <li><strong>Genkit AI Flows (<code>ai/flows/</code>):</strong> Defined using Genkit, run on the server.
+                  <ul className="list-circle list-inside pl-6">
+                    <li>Use prompts to interact with Google's Gemini model.</li>
+                    <li><code>extract-exam-info.ts</code>: Parses PDF text for exam metadata.</li>
+                    <li><code>extract-questions-flow.ts</code>: Parses PDF text for questions, options, and answers.</li>
+                  </ul>
+                </li>
+                <li>Next.js handles routing, static assets, and SSR of initial page shells.</li>
               </ul>
               <h3 className="text-lg font-medium mt-3 mb-1">External Services:</h3>
               <ul className="list-disc list-inside space-y-1 pl-4">
-                <li>Google AI (Gemini): For NLP and information extraction via Genkit.</li>
+                <li><strong>Google AI (Gemini):</strong> Accessed via Genkit for NLP and information extraction.</li>
               </ul>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold mb-2 text-primary">4. Workflow Diagram (Simplified)</h2>
-              <pre className="bg-secondary/30 p-3 rounded-md overflow-x-auto"><code>
-User (Browser) -- Uploads PDF --> Client PDF Processing -- Extracted Text --> Server Action (extractExamInfo)
-Server Action --> Genkit AI Flow (extractExamInfo) -- Exam Metadata --> Client (ExamContext)
-Client --> Display Exam Details
-Client (ExamContext) -- Requests Questions --> Server Action (extractQuestions) -- Text, SectionInfo --> Genkit AI Flow (extractQuestions)
-Genkit AI Flow -- Extracted Questions --> Client (ExamContext)
-Client --> User Takes Exam (Stores Answers)
-Client --> User Submits Exam --> Client-Side Results Calculation
-Client --> Display Results
+              <pre className="bg-secondary/30 p-3 rounded-md overflow-x-auto text-xs"><code>
+{`+----------------------+     +-------------------------+     +-------------------------+
+| User (Browser)       | --> | Client-Side PDF         | --> | Server Action           |
+|                      |     | Processing (pdfUtils)   |     | (extractExamInfoAction) |
+| Uploads PDF          |     | (Extracts Text)         |     |                         |
++----------------------+     +-------------------------+     +-------------------------+
+                                                                  |
+                                                                  v
++----------------------+     +-------------------------+     +-------------------------+
+| Display Exam Details | <-- | Client (ExamContext)    | <-- | Genkit AI Flow          |
+| (ExamDetailsDisplay) |     | (Receives Metadata)     |     | (extractExamInfo)       |
++----------------------+     +-------------------------+     +-------------------------+
+       |
+       | (Lazy load questions for first/next section)
+       v
++----------------------+     +-------------------------+     +-------------------------+
+| Client (ExamContext) | --> | Server Action           | --> | Genkit AI Flow          |
+| Requests Questions   |     | (extractQuestionsAction)|     | (extractQuestions)      |
++----------------------+     +-------------------------+     +-------------------------+
+       |
+       v
++----------------------+     +-------------------------+
+| User Takes Exam      | --> | Client (ExamContext)    |
+| (TestInterfaceClient)|     | (Stores Answers)        |
++----------------------+     +-------------------------+
+       |
+       v
++----------------------+     +-------------------------+
+| User Submits Exam    | --> | Client-Side Results     |
+|                      |     | Calculation (resultsUtils)|
++----------------------+     +-------------------------+
+       |
+       v
++----------------------+
+| Display Results      |
+| (ResultsDisplayClient)|
++----------------------+`}
               </code></pre>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold mb-2 text-primary">5. Usecase Diagram (Mermaid Format)</h2>
-              <pre className="bg-secondary/30 p-3 rounded-md overflow-x-auto"><code>
-graph TD
+              <pre className="bg-secondary/30 p-3 rounded-md overflow-x-auto text-xs"><code>
+{`graph TD
     A[User] --> |Uploads PDF| B(Upload PDF File)
     B --> C{{Process PDF}}
     C -- Direct Text --> D[Extract Text (pdfjs-dist)]
@@ -152,15 +229,15 @@ graph TD
     P --> Q[System: Calculate Results]
     Q --> R[Display Results]
     A --> R
-    A --> |Views PDF Processing Suggestions| S(View Suggestions)
+    A --> |Views PDF Processing Suggestions| S(View Suggestions)`}
               </code></pre>
               <p className="text-xs text-muted-foreground mt-1"> (This can be rendered using a Mermaid visualizer.)</p>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold mb-2 text-primary">6. Class Diagram (Simplified - Mermaid Format)</h2>
-              <pre className="bg-secondary/30 p-3 rounded-md overflow-x-auto"><code>
-classDiagram
+              <pre className="bg-secondary/30 p-3 rounded-md overflow-x-auto text-xs"><code>
+{`classDiagram
     class ExamData {
         +pdfTextContent: string | null
         +examInfo: ExtractExamInfoOutput | null
@@ -175,17 +252,25 @@ classDiagram
     class ExtractExamInfoOutput {
         +examName: string
         +overallDuration: string
+        +overallTotalMarks: number?
+        +overallNumberOfQuestions: number?
+        +overallNegativeMarking: string?
         +subjects: SubjectDetail[]
-        +sections: string[]
+        +sections: string[] # Flat list of unique section identifiers
+        +questionBreakdown: string?
     }
     class SubjectDetail {
         +subjectName: string
         +subjectSections: SectionDetail[]
+        +subjectDuration: string?
+        +totalMarksForSubject: number?
+        +numberOfQuestionsInSubject: number?
     }
     class SectionDetail {
         +sectionNameOrType: string
         +numberOfQuestions: number?
         +marksPerQuestion: number?
+        +totalMarksForSection: number?
     }
     class Question {
         +id: string
@@ -193,11 +278,13 @@ classDiagram
         +options: string[]
         +correctAnswer: string
         +section: string
+        +originalPdfQuestionNumber: string?
     }
     class UserAnswer {
         +questionId: string
         +selectedOption: string | null
         +isCorrect: boolean | null
+        +timeTaken: number
         +hintsTaken: Array~HintRecord~
     }
     class HintRecord {
@@ -208,14 +295,16 @@ classDiagram
     ExamData "1" *-- "0..*" UserAnswer
     ExamData "1" *-- "1" ExtractExamInfoOutput
     ExtractExamInfoOutput "1" *-- "0..*" SubjectDetail
-    SubjectDetail "1" *-- "0..*" SectionDetail
+    SubjectDetail "1" *-- "0..*" SectionDetail`}
               </code></pre>
               <p className="text-xs text-muted-foreground mt-1"> (This can be rendered using a Mermaid visualizer.)</p>
             </section>
           </div>
         </ScrollArea>
         <DialogFooter>
-          <Button onClick={() => (document.querySelector('[data-radix-dialog-close]') as HTMLElement)?.click()}>Close</Button>
+          <DialogClose asChild>
+            <Button>Close</Button>
+          </DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -223,3 +312,5 @@ classDiagram
 };
 
 export default ProjectInfoModal;
+
+    
