@@ -12,6 +12,7 @@ import type React from 'react';
 import CurrentYear from '@/components/app/CurrentYear';
 import { useEffect, useState } from 'react';
 import DarkModeToggle from '@/components/app/DarkModeToggle';
+import ProjectInfoModal from '@/components/app/ProjectInfoModal'; // Import the new modal
 
 
 // Font loaders must be called and assigned to a const in the module scope
@@ -80,7 +81,10 @@ export default function RootLayout({
                 <BookOpenCheck className="h-7 w-7" />
                 ExamPrep
               </Link>
-              <DarkModeToggle />
+              <div className="flex items-center gap-1">
+                <ProjectInfoModal />
+                <DarkModeToggle />
+              </div>
             </div>
           </header>
           <main className="flex-grow container mx-auto px-4 py-8">
