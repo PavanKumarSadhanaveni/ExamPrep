@@ -30,28 +30,34 @@ const QuestionCardClient: React.FC<QuestionCardClientProps> = ({ question, quest
 
   const handleOptionChange = useCallback((value: string) => {
     if (isSubmitted || examData.isPaused) return; 
-    setSelectedValue(value);
-    answerQuestion(question.id, value);
-  }, [isSubmitted, examData.isPaused, answerQuestion, question.id]);
+
+    if (selectedValue === value) { // If clicking the already selected option
+      setSelectedValue(null);
+      answerQuestion(question.id, null); // Deselect
+    } else {
+      setSelectedValue(value);
+      answerQuestion(question.id, value); // Select new option
+    }
+  }, [isSubmitted, examData.isPaused, answerQuestion, question.id, selectedValue]);
 
   const getOptionStyle = (optionText: string) => {
     if (!isSubmitted) return "";
-    const wasSelected = selectedValue === optionText;
+    const wasSelectedBySelf = userAnswer?.selectedOption === optionText; // Use userAnswer for submitted state consistency
     const isCorrectAnswer = optionText === question.correctAnswer;
 
     if (isCorrectAnswer) return "text-green-600 border-green-500 bg-green-50 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700";
-    if (wasSelected && !isCorrectAnswer) return "text-red-600 border-red-500 bg-red-50 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700";
+    if (wasSelectedBySelf && !isCorrectAnswer) return "text-red-600 border-red-500 bg-red-50 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700";
     
     return "border-border";
   };
 
   const getIcon = (optionText: string) => {
     if (!isSubmitted) return null;
-    const wasSelected = selectedValue === optionText;
+    const wasSelectedBySelf = userAnswer?.selectedOption === optionText; // Use userAnswer for submitted state consistency
     const isCorrectAnswer = optionText === question.correctAnswer;
 
     if (isCorrectAnswer) return <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />;
-    if (wasSelected && !isCorrectAnswer) return <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />;
+    if (wasSelectedBySelf && !isCorrectAnswer) return <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />;
     
     return null;
   }
@@ -68,7 +74,7 @@ const QuestionCardClient: React.FC<QuestionCardClientProps> = ({ question, quest
         <p className="text-lg leading-relaxed whitespace-pre-wrap">{question.questionText}</p>
         
         <RadioGroup 
-            value={selectedValue ?? undefined}
+            value={selectedValue ?? undefined} // Use selectedValue for immediate UI update
             onValueChange={handleOptionChange} 
             className="space-y-3"
             disabled={isSubmitted || examData.isPaused}
@@ -89,7 +95,7 @@ const QuestionCardClient: React.FC<QuestionCardClientProps> = ({ question, quest
                 value={optionText} 
                 id={`${question.id}-option-${index}`} 
                 disabled={isSubmitted || examData.isPaused}
-                className={cn(isSubmitted && selectedValue === optionText ? (optionText === question.correctAnswer ? "border-green-500 dark:border-green-700" : "border-red-500 dark:border-red-700") : "border-primary")}
+                className={cn(isSubmitted && userAnswer?.selectedOption === optionText ? (optionText === question.correctAnswer ? "border-green-500 dark:border-green-700" : "border-red-500 dark:border-red-700") : "border-primary")}
               />
               <span className="flex-1">{optionText}</span>
               {isSubmitted && getIcon(optionText)}
@@ -109,6 +115,11 @@ const QuestionCardClient: React.FC<QuestionCardClientProps> = ({ question, quest
                 <p className="text-sm text-muted-foreground">Your answer: {userAnswer.selectedOption}</p>
                 <p className="text-sm">Correct answer: <span className="font-semibold text-green-700 dark:text-green-500">{question.correctAnswer}</span></p>
               </div>
+            )}
+             {userAnswer.hintsTaken.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-2">
+                    (Score adjusted due to {userAnswer.hintsTaken.length} hint(s) taken)
+                </p>
             )}
           </div>
         )}
